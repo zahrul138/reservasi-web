@@ -1,6 +1,5 @@
 "use client"
 
-// pages/RoomDetail.js
 import { useState, useRef, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
@@ -23,6 +22,8 @@ import {
   FaWifi,
   FaWineGlassAlt,
 } from "react-icons/fa"
+import { API_BASE_URL } from "../services/apiConfig";
+
 
 function RoomDetail() {
   // Untuk memastikan data yang tampil adalah teks bersih

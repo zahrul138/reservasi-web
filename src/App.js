@@ -26,6 +26,9 @@ import BookingFormThree from "./pages/BookingFormThree";
 import HistoryBooking from "./pages/HistoryBooking";
 import AboutPage from "./pages/AboutPages";
 import ContactPage from "./pages/ContactPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import Profile from "./pages/Profile";
 
 const LayoutWithNavbar = ({ children }) => (
   <>
@@ -37,7 +40,6 @@ const LayoutWithNavbar = ({ children }) => (
 function App() {
   return (
     <Router>
-      {/* Toast global biar muncul di semua halaman */}
       <ToastContainer
         position="top-right"
         autoClose={3000}
@@ -45,15 +47,15 @@ function App() {
       />
 
       <Routes>
-        {/* Route tanpa Navbar */}
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/privacyPolicy" element={<PrivacyPolicy />}></Route>
+        <Route path="/termsOfService" element={<TermsOfService />}></Route>
         <Route path="/bookingformone" element={<BookingFormOne />} />
         <Route path="/bookingformtwo" element={<BookingFormTwo />} />
         <Route path="/bookingformthree" element={<BookingFormThree />} />
         <Route path="/invoice" element={<InvoicePage />} />
 
-        {/* Admin routes */}
         <Route
           path="/admin/dashboard"
           element={
@@ -95,6 +97,14 @@ function App() {
           }
         />
         <Route
+          path="/profile"
+          element={
+            <LayoutWithNavbar>
+              <Profile />
+            </LayoutWithNavbar>
+          }
+        />
+        <Route
           path="/admin/history"
           element={
             <ProtectedRoute>
@@ -110,8 +120,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Routes dengan Navbar */}
         <Route
           path="/home"
           element={
@@ -160,8 +168,6 @@ function App() {
             </LayoutWithNavbar>
           }
         />
-
-        {/* Default route */}
         <Route
           path="/"
           element={
@@ -171,7 +177,6 @@ function App() {
           }
         />
 
-        {/* Catch-all route */}
         <Route
           path="*"
           element={

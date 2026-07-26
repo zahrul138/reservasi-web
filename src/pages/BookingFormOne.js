@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
+import { API_BASE_URL } from "../services/apiConfig"
 
 // Utility function to generate steps based on current step
 const generateSteps = (currentStep) => {
@@ -36,7 +37,7 @@ const BookingFormOne = () => {
       if (!bookingDetails.roomId) return
 
       try {
-        const res = await fetch(`https://localhost:7298/api/room/${bookingDetails.roomId}`)
+        const res = await fetch(`${API_BASE_URL}/api/room/${bookingDetails.roomId}`)
         const data = await res.json()
         setRoomData(data)
       } catch (err) {

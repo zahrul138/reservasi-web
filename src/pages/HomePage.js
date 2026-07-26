@@ -6,6 +6,8 @@ import HotelLobby from "../assets/images/HotelLobbyBG.png";
 import Pool from "../assets/images/PoolBG.png";
 import Restaurant from "../assets/images/RestaurantBG.png";
 import Spa from "../assets/images/SpaBG.png";
+import { Helmet } from "react-helmet-async";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   FaHotel,
@@ -25,6 +27,8 @@ import {
   FaStar,
   FaCamera,
 } from "react-icons/fa";
+
+import { API_BASE_URL } from "../services/apiConfig";
 
 const styles = {
   page: {
@@ -54,7 +58,6 @@ const styles = {
     fontSize: "1.1rem",
   },
 
-  // Hero section
   hero: {
     height: "80vh",
     minHeight: "600px",
@@ -101,7 +104,6 @@ const styles = {
     color: "#fff",
   },
 
-  // Booking section
   bookingSection: {
     backgroundColor: "#f8f5f0",
     padding: "1rem 1rem",
@@ -261,10 +263,74 @@ const styles = {
   },
   roomsGrid: {
     display: "flex",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: "2.5rem",
     marginBottom: "3rem",
+    overflowX: "auto",
+    paddingBottom: "0.5rem",
+    scrollbarWidth: "none",
+  },
+  roomsCarouselWrapper: {
+    position: "relative",
+  },
+  roomsArrowButton: {
+    position: "absolute",
+    top: "40%",
+    transform: "translateY(-50%)",
+    width: "48px",
+    height: "48px",
+    borderRadius: "50%",
+    border: "2px solid #D09500",
+    backgroundColor: "white",
+    color: "#D09500",
+    fontSize: "1.1rem",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
     justifyContent: "center",
+    boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
+    zIndex: 5,
+  },
+  roomsArrowLeft: {
+    left: "-60px",
+  },
+  roomsArrowRight: {
+    right: "-60px",
+  },
+  roomsArrowButtonBase: {
+    position: "absolute",
+    top: "100px",
+    transform: "translateY(-50%)",
+    width: "48px",
+    height: "48px",
+    borderRadius: "50%",
+    border: "2px solid #D09500",
+    backgroundColor: "white",
+    color: "#D09500",
+    fontSize: "1.1rem",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    zIndex: 10,
+  },
+  scrollTrack: {
+    position: "relative",
+    width: "100%",
+    height: "6px",
+    backgroundColor: "#e2e8f0",
+    borderRadius: "3px",
+    marginTop: "1rem",
+    cursor: "pointer",
+  },
+  scrollThumb: {
+    position: "absolute",
+    top: 0,
+    height: "100%",
+    backgroundColor: "#D09500",
+    borderRadius: "3px",
+    cursor: "pointer",
   },
   roomCard: {
     position: "relative",
@@ -301,7 +367,7 @@ const styles = {
     color: "#666",
     marginBottom: "1.25rem",
     fontSize: "0.95rem",
-    height: "40px", // Ganti dari minHeight
+    height: "40px",
     overflow: "hidden",
   },
   roomFeatures: {
@@ -309,7 +375,7 @@ const styles = {
     flexWrap: "wrap",
     gap: "0.75rem",
     marginBottom: "1.25rem",
-    height: "80px", // Ganti dari minHeight
+    height: "80px",
     overflow: "hidden",
   },
   roomFeature: {
@@ -382,7 +448,6 @@ const styles = {
     fontSize: "0.95rem",
   },
 
-  // CTA section
   ctaSection: {
     background: "linear-gradient(135deg, #87723B, #D09500)",
     color: "white",
@@ -420,7 +485,7 @@ const styles = {
     transition: "all 0.2s",
     cursor: "pointer",
     textDecoration: "none",
-    border: "1px solid #D09500", 
+    border: "1px solid #D09500",
   },
   testimonialsSection: {
     backgroundColor: "#f8f5f0",
@@ -747,7 +812,7 @@ const styles = {
   },
 };
 
-const API_URL = "https://localhost:7298";
+const API_URL = API_BASE_URL;
 
 function parseSafe(value) {
   if (Array.isArray(value)) return value;
@@ -756,13 +821,19 @@ function parseSafe(value) {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) return parsed;
     } catch {
-      // fallback ke comma-separated
-      return value.split(",").map(s => s.trim()).filter(Boolean);
+      return value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
   }
   return [];
 }
 
+const fadeInUp = {
+  hidden: { opacity: 0, y: 50 },
+  visible: { opacity: 1, y: 0 },
+};
 
 function Homepage() {
   const navigate = useNavigate();
@@ -776,46 +847,80 @@ function Homepage() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const featuredRef = useRef(null);
+  const roomsScrollRef = useRef(null);
+  const scrollTrackRef = useRef(null);
+  const isDraggingThumb = useRef(false);
+  const dragOffsetRef = useRef(0);
+  const rafRef = useRef(null);
+  const justDraggedRef = useRef(false);
+  const [thumbWidthPercent, setThumbWidthPercent] = useState(100);
+  const [thumbLeftPercent, setThumbLeftPercent] = useState(0);
+  const scrollIntervalRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
   const guestDropdownRef = useRef(null);
 
   const [rooms, setRooms] = useState([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [roomsError, setRoomsError] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/room`)
-      .then(res => res.json())
-      .then(data => {
-        const parsed = data.map(room => ({
+    const fetchRooms = async () => {
+      setIsLoadingRooms(true);
+      setRoomsError(false);
+
+      try {
+        const response = await fetch(`${API_URL}/api/room`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch rooms");
+        }
+
+        const data = await response.json();
+        const parsed = data.map((room) => ({
           ...room,
           features: parseSafe(room.features),
           policies: parseSafe(room.policies),
         }));
+
         setRooms(parsed);
-      });
+      } catch (error) {
+        console.error(error);
+        setRoomsError(true);
+      } finally {
+        setIsLoadingRooms(false);
+      }
+    };
+
+    fetchRooms();
   }, []);
 
-  const testimonials = [
-    {
-      quote:
-        "Our stay at Golden Stays was absolutely perfect. The staff went above and beyond to make our anniversary special.",
-      author: "Sarah & Michael Johnson",
-      location: "New York, USA",
-      rating: 5,
-    },
-    {
-      quote:
-        "The rooms are spacious and beautifully designed. The location is perfect for exploring the city. Will definitely return!",
-      author: "David Williams",
-      location: "London, UK",
-      rating: 5,
-    },
-    {
-      quote:
-        "Exceptional service and amenities. The restaurant serves delicious food and the spa treatments were amazing.",
-      author: "Emma Rodriguez",
-      location: "Toronto, Canada",
-      rating: 4,
-    },
-  ];
+  const [testimonials, setTestimonials] = useState([]);
+  const [isLoadingTestimonials, setIsLoadingTestimonials] = useState(true);
+
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      setIsLoadingTestimonials(true);
+
+      try {
+        const response = await fetch(`${API_URL}/api/review/approved?limit=5`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch testimonials");
+        }
+
+        const data = await response.json();
+        setTestimonials(data);
+      } catch (error) {
+        console.error(error);
+        setTestimonials([]);
+      } finally {
+        setIsLoadingTestimonials(false);
+      }
+    };
+
+    fetchTestimonials();
+  }, []);
 
   const galleryImages = [
     { id: 1, url: HotelLobby, alt: "Hotel Lobby" },
@@ -875,7 +980,6 @@ function Homepage() {
     });
   };
 
-
   const incrementAdults = () => {
     if (adults < 10) setAdults(adults + 1);
   };
@@ -900,13 +1004,125 @@ function Homepage() {
 
   const nextTestimonial = () => {
     setCurrentTestimonial((prev) =>
-      prev === testimonials.length - 1 ? 0 : prev + 1
+      prev === testimonials.length - 1 ? 0 : prev + 1,
     );
   };
 
+  const scrollRoomsLeft = () => {
+    if (roomsScrollRef.current) {
+      roomsScrollRef.current.scrollBy({ left: -380, behavior: "smooth" });
+    }
+  };
+
+  const scrollRoomsRight = () => {
+    if (roomsScrollRef.current) {
+      roomsScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
+    }
+  };
+
+  const scrollRoomsStep = (direction) => {
+    if (roomsScrollRef.current) {
+      roomsScrollRef.current.scrollLeft += direction * 12;
+    }
+  };
+
+  const startHoldScrollRooms = (direction) => {
+    scrollRoomsStep(direction);
+    if (scrollIntervalRef.current) return;
+    scrollIntervalRef.current = setInterval(() => {
+      scrollRoomsStep(direction);
+    }, 16);
+  };
+
+  const stopHoldScrollRooms = () => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  };
+
+  const handleThumbMouseMove = (e) => {
+    if (!isDraggingThumb.current || !roomsScrollRef.current || !scrollTrackRef.current) {
+      return;
+    }
+
+    justDraggedRef.current = true;
+
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+
+    rafRef.current = requestAnimationFrame(() => {
+      const track = scrollTrackRef.current;
+      const trackRect = track.getBoundingClientRect();
+      const el = roomsScrollRef.current;
+
+      const thumbWidthPx = (thumbWidthPercent / 100) * trackRect.width;
+      const maxThumbLeftPx = trackRect.width - thumbWidthPx;
+
+      let newThumbLeftPx = e.clientX - trackRect.left - dragOffsetRef.current;
+      newThumbLeftPx = Math.min(Math.max(newThumbLeftPx, 0), maxThumbLeftPx);
+
+      const percent = maxThumbLeftPx > 0 ? newThumbLeftPx / maxThumbLeftPx : 0;
+      const maxScrollLeft = el.scrollWidth - el.clientWidth;
+
+      el.scrollLeft = percent * maxScrollLeft;
+      setThumbLeftPercent(percent * (100 - thumbWidthPercent));
+
+      setCanScrollLeft(el.scrollLeft > 5);
+      setCanScrollRight(el.scrollLeft < maxScrollLeft - 5);
+    });
+  };
+
+  const handleThumbMouseDown = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    isDraggingThumb.current = true;
+
+    const thumbRect = e.currentTarget.getBoundingClientRect();
+    dragOffsetRef.current = e.clientX - thumbRect.left;
+
+    document.addEventListener("mousemove", handleThumbMouseMove);
+    document.addEventListener("mouseup", handleThumbMouseUp);
+  };
+
+  const handleThumbMouseUp = () => {
+    isDraggingThumb.current = false;
+    document.removeEventListener("mousemove", handleThumbMouseMove);
+    document.removeEventListener("mouseup", handleThumbMouseUp);
+
+    setTimeout(() => {
+      justDraggedRef.current = false;
+    }, 0);
+  };
+
+  const checkRoomsScroll = () => {
+    const el = roomsScrollRef.current;
+    if (!el) return;
+
+    if (isDraggingThumb.current) return;
+
+    setCanScrollLeft(el.scrollLeft > 5);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
+
+    const widthPercent = (el.clientWidth / el.scrollWidth) * 100;
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    const leftPercent =
+      maxScrollLeft > 0
+        ? (el.scrollLeft / maxScrollLeft) * (100 - widthPercent)
+        : 0;
+
+    setThumbWidthPercent(widthPercent);
+    setThumbLeftPercent(leftPercent);
+  };
+
+  useEffect(() => {
+    checkRoomsScroll();
+  }, [rooms]);
+
   const prevTestimonial = () => {
     setCurrentTestimonial((prev) =>
-      prev === 0 ? testimonials.length - 1 : prev - 1
+      prev === 0 ? testimonials.length - 1 : prev - 1,
     );
   };
 
@@ -923,13 +1139,13 @@ function Homepage() {
 
   const nextImage = () => {
     setSelectedImage((prev) =>
-      prev === galleryImages.length - 1 ? 0 : prev + 1
+      prev === galleryImages.length - 1 ? 0 : prev + 1,
     );
   };
 
   const prevImage = () => {
     setSelectedImage((prev) =>
-      prev === 0 ? galleryImages.length - 1 : prev - 1
+      prev === 0 ? galleryImages.length - 1 : prev - 1,
     );
   };
 
@@ -944,10 +1160,11 @@ function Homepage() {
     }
   };
 
-
   return (
     <div style={styles.page}>
-      {/* Hero Section */}
+      <Helmet>
+        <title>Home Page</title>
+      </Helmet>
       <section style={styles.hero}>
         <div style={styles.heroContent}>
           <div style={styles.smallHeading}>
@@ -958,12 +1175,12 @@ function Homepage() {
             Explore Indonesia from our 5-star hotel in Batam
           </h1>
           <p style={styles.heroDescription}>
-            Batam Royal Gold invites you to experience the best of Batam Island, Indonesia — where 5-star luxury, exceptional service, and premium high-tech amenities come together in the exclusive Royal Gold area.
+            Batam Royal Gold invites you to experience the best of Batam Island,
+            Indonesia — where 5-star luxury, exceptional service, and premium
+            high-tech amenities come together in the exclusive Royal Gold area.
           </p>
         </div>
       </section>
-
-      {/* Booking Form */}
       <section id="booking" style={styles.bookingSection}>
         <div style={styles.bookingContainer}>
           <form onSubmit={handleSearch} style={styles.bookingForm}>
@@ -1144,128 +1361,277 @@ function Homepage() {
                   Search
                 </label>
                 <button
-                  type="submit" // ← Ubah dari "submit" ke "button"
+                  type="submit"
                   style={styles.searchButton}
-                  onClick={handleSearch} // ← Pindahkan ke sini
+                  onClick={handleSearch}
                   onMouseOver={(e) => {
                     e.currentTarget.style.backgroundColor = "#87723B";
                     e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = "0 6px 8px rgba(208, 149, 0, 0.25)";
+                    e.currentTarget.style.boxShadow =
+                      "0 6px 8px rgba(208, 149, 0, 0.25)";
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.backgroundColor = "#D09500";
                     e.currentTarget.style.transform = "none";
-                    e.currentTarget.style.boxShadow = "0 4px 6px rgba(208, 149, 0, 0.2)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 6px rgba(208, 149, 0, 0.2)";
                   }}
                 >
                   <FaSearch /> Search
                 </button>
-
               </div>
             </div>
           </form>
         </div>
       </section>
-
-      {/* DYNAMIC FEATURED ROOMS */}
-      <section id="rooms" ref={featuredRef} style={styles.roomsSection}>
+      <motion.section
+        id="rooms"
+        ref={featuredRef}
+        style={styles.roomsSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Our Accommodations</h2>
           <p style={styles.sectionDescription}>
             Choose from our selection of comfortable and elegant rooms
           </p>
-          <div style={styles.roomsGrid}>
-            {rooms.length === 0 && (
-              <div style={{ color: "#D09500", fontWeight: 500, textAlign: "center" }}>
-                No rooms available.
-              </div>
-            )}
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                style={styles.roomCard}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateY(-5px)";
-                  e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.1)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = "none";
-                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
-                }}
-              >
-                <div
+
+          <div style={styles.roomsCarouselWrapper}>
+            <AnimatePresence>
+              {canScrollLeft && (
+                <motion.button
+                  key="rooms-arrow-left"
+                  initial={{ opacity: 0, scale: 0.4 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.4 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
                   style={{
-                    ...styles.roomImage,
-                    backgroundImage: (() => {
-                      if (room.image1) {
-                        if (room.image1.startsWith("/uploads/")) {
-                          return `url(${API_URL}${room.image1})`;
-                        }
-                        if (room.image1.startsWith("http")) {
-                          return `url(${room.image1})`;
-                        }
-                      }
-                      return 'url("https://via.placeholder.com/350x200")';
-                    })(),
+                    ...styles.roomsArrowButton,
+                    ...styles.roomsArrowLeft,
                   }}
-                ></div>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "1rem",
-                    right: "1rem",
-                    backgroundColor: "#ffffff",
-                    color: "#D09500",
-                    border: "1px solid #D09500",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "12px",
-                    fontSize: "0.875rem",
-                    fontWeight: "500",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    zIndex: 2,
+                  onMouseDown={() => startHoldScrollRooms(-1)}
+                  onMouseUp={stopHoldScrollRooms}
+                  onMouseLeave={stopHoldScrollRooms}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = "#D09500";
+                    e.currentTarget.style.color = "white";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = "white";
+                    e.currentTarget.style.color = "#D09500";
                   }}
                 >
-                  {room.quantity} room left
+                  <FaArrowLeft />
+                </motion.button>
+              )}
+            </AnimatePresence>
+
+            <div
+              style={styles.roomsGrid}
+              ref={roomsScrollRef}
+              onScroll={checkRoomsScroll}
+            >
+              {isLoadingRooms && (
+                <div
+                  style={{
+                    color: "#D09500",
+                    fontWeight: 500,
+                    textAlign: "center",
+                  }}
+                >
+                  Loading rooms...
                 </div>
-                <div style={styles.roomDetails}>
-                  <h3 style={styles.roomTitle}>{room.title}</h3>
-                  <p style={styles.roomDescription}>{room.shortDescription}</p>
-                  <div style={styles.roomFeatures}>
-                    {(room.features || []).slice(0, 3).map((feat, i) => (
-                      <span key={i} style={styles.roomFeature}>
-                        <FaCheck size={12} /> {feat}
-                      </span>
-                    ))}
-                  </div>
-                  <div style={styles.roomPrice}>
-                    <span style={styles.price}>
-                      Rp {room.price.toLocaleString("id-ID")}
-                    </span>
-                    / night
-                  </div>
-                  <Link
-                    to={`/room/${room.id}`}
-                    style={styles.viewDetailsButton}
+              )}
+
+              {!isLoadingRooms && roomsError && (
+                <div
+                  style={{
+                    color: "#dc3545",
+                    fontWeight: 500,
+                    textAlign: "center",
+                  }}
+                >
+                  Failed to load rooms. Please try again later.
+                </div>
+              )}
+
+              {!isLoadingRooms && !roomsError && rooms.length === 0 && (
+                <div
+                  style={{
+                    color: "#D09500",
+                    fontWeight: 500,
+                    textAlign: "center",
+                  }}
+                >
+                  No rooms available.
+                </div>
+              )}
+
+              {!isLoadingRooms &&
+                !roomsError &&
+                rooms.map((room) => (
+                  <div
+                    key={room.id}
+                    style={styles.roomCard}
                     onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#D09500";
-                      e.currentTarget.style.color = "white";
+                      e.currentTarget.style.transform = "translateY(-5px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 10px 25px rgba(0, 0, 0, 0.1)";
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.color = "#D09500";
+                      e.currentTarget.style.transform = "none";
+                      e.currentTarget.style.boxShadow =
+                        "0 4px 20px rgba(0, 0, 0, 0.08)";
                     }}
                   >
-                    View Details
-                  </Link>
-                </div>
-              </div>
-            ))}
+                    <div
+                      style={{
+                        ...styles.roomImage,
+                        backgroundImage: (() => {
+                          if (room.image1) {
+                            if (room.image1.startsWith("/uploads/")) {
+                              return `url(${API_URL}${room.image1})`;
+                            }
+                            if (room.image1.startsWith("http")) {
+                              return `url(${room.image1})`;
+                            }
+                          }
+                          return "linear-gradient(135deg, #87723b, #d09500)";
+                        })(),
+                      }}
+                    ></div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "1rem",
+                        right: "1rem",
+                        backgroundColor: "#ffffff",
+                        color: "#D09500",
+                        border: "1px solid #D09500",
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "12px",
+                        fontSize: "0.875rem",
+                        fontWeight: "500",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        zIndex: 2,
+                      }}
+                    >
+                      {room.quantity} room left
+                    </div>
+                    <div style={styles.roomDetails}>
+                      <h3 style={styles.roomTitle}>{room.title}</h3>
+                      <p style={styles.roomDescription}>
+                        {room.shortDescription}
+                      </p>
+                      <div style={styles.roomFeatures}>
+                        {(room.features || []).slice(0, 3).map((feat, i) => (
+                          <span key={i} style={styles.roomFeature}>
+                            <FaCheck size={12} /> {feat}
+                          </span>
+                        ))}
+                      </div>
+                      <div style={styles.roomPrice}>
+                        <span style={styles.price}>
+                          Rp {room.price.toLocaleString("id-ID")}
+                        </span>
+                        / night
+                      </div>
+                      <Link
+                        to={`/room/${room.id}`}
+                        style={styles.viewDetailsButton}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.backgroundColor = "#D09500";
+                          e.currentTarget.style.color = "white";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                          e.currentTarget.style.color = "#D09500";
+                        }}
+                      >
+                        View Details
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            <AnimatePresence>
+              {canScrollRight && (
+                <motion.button
+                  key="rooms-arrow-right"
+                  initial={{ opacity: 0, scale: 0.4 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.4 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  style={{
+                    ...styles.roomsArrowButton,
+                    ...styles.roomsArrowRight,
+                  }}
+                  onMouseDown={() => startHoldScrollRooms(1)}
+                  onMouseUp={stopHoldScrollRooms}
+                  onMouseLeave={stopHoldScrollRooms}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = "#D09500";
+                    e.currentTarget.style.color = "white";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = "white";
+                    e.currentTarget.style.color = "#D09500";
+                  }}
+                >
+                  <FaArrowRight />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div
+            ref={scrollTrackRef}
+            style={styles.scrollTrack}
+            onClick={(e) => {
+              if (justDraggedRef.current) return;
+              if (!roomsScrollRef.current || !scrollTrackRef.current) return;
+
+              const trackRect = scrollTrackRef.current.getBoundingClientRect();
+              const el = roomsScrollRef.current;
+
+              const thumbWidthPx = (thumbWidthPercent / 100) * trackRect.width;
+              const maxThumbLeftPx = trackRect.width - thumbWidthPx;
+
+              let clickThumbLeftPx = e.clientX - trackRect.left - thumbWidthPx / 2;
+              clickThumbLeftPx = Math.min(Math.max(clickThumbLeftPx, 0), maxThumbLeftPx);
+
+              const percent = maxThumbLeftPx > 0 ? clickThumbLeftPx / maxThumbLeftPx : 0;
+              const maxScrollLeft = el.scrollWidth - el.clientWidth;
+
+              el.scrollTo({ left: percent * maxScrollLeft, behavior: "smooth" });
+            }}
+          >
+            <div
+              style={{
+                ...styles.scrollThumb,
+                width: `${thumbWidthPercent}%`,
+                left: `${thumbLeftPercent}%`,
+              }}
+              onMouseDown={handleThumbMouseDown}
+              onClick={(e) => e.stopPropagation()}  
+            />
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Amenities */}
-      <section id="amenities" style={styles.amenitiesSection}>
+      <motion.section
+        style={styles.amenitiesSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Hotel Amenities</h2>
           <p style={styles.sectionDescription}>
@@ -1368,10 +1734,15 @@ function Homepage() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section style={styles.testimonialsSection}>
+      </motion.section>
+      <motion.section
+        style={styles.testimonialsSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>What Our Guests Say</h2>
           <p style={styles.sectionDescription}>
@@ -1379,74 +1750,95 @@ function Homepage() {
           </p>
 
           <div style={styles.testimonialSlider}>
-            <div style={styles.testimonialSlide}>
-              <div style={styles.testimonialQuote}>
-                <FaQuoteLeft style={styles.quoteIcon} />
-                {testimonials[currentTestimonial].quote}
+            {isLoadingTestimonials && (
+              <div style={{ textAlign: "center", color: "#D09500" }}>
+                Loading testimonials...
               </div>
-              <div style={styles.testimonialRating}>
-                {[...Array(testimonials[currentTestimonial].rating)].map(
-                  (_, i) => (
-                    <FaStar key={i} style={{ color: "#D09500" }} />
-                  )
-                )}
-              </div>
-              <div style={styles.testimonialAuthor}>
-                {testimonials[currentTestimonial].author}
-              </div>
-              <div style={styles.testimonialLocation}>
-                {testimonials[currentTestimonial].location}
-              </div>
-            </div>
+            )}
 
-            <div style={styles.sliderControls}>
-              <button
-                style={styles.sliderButton}
-                onClick={prevTestimonial}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "#e2e8f0";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f8f5f0";
-                }}
-              >
-                <FaArrowLeft />
-              </button>
-              <button
-                style={styles.sliderButton}
-                onClick={nextTestimonial}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "#e2e8f0";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f8f5f0";
-                }}
-              >
-                <FaArrowRight />
-              </button>
-            </div>
+            {!isLoadingTestimonials && testimonials.length === 0 && (
+              <div style={{ textAlign: "center", color: "#666" }}>
+                No testimonials available yet.
+              </div>
+            )}
 
-            <div style={styles.sliderDots}>
-              {testimonials.map((_, index) => (
-                <button
-                  key={index}
-                  style={{
-                    ...styles.sliderDot,
-                    backgroundColor:
-                      currentTestimonial === index ? "#D09500" : "#e2e8f0",
-                    width: currentTestimonial === index ? "12px" : "10px",
-                    height: currentTestimonial === index ? "12px" : "10px",
-                  }}
-                  onClick={() => setCurrentTestimonial(index)}
-                />
-              ))}
-            </div>
+            {!isLoadingTestimonials && testimonials.length > 0 && (
+              <>
+                <div style={styles.testimonialSlide}>
+                  <div style={styles.testimonialQuote}>
+                    <FaQuoteLeft style={styles.quoteIcon} />
+                    {testimonials[currentTestimonial].comment}
+                  </div>
+                  <div style={styles.testimonialRating}>
+                    {[...Array(testimonials[currentTestimonial].rating)].map(
+                      (_, i) => (
+                        <FaStar key={i} style={{ color: "#D09500" }} />
+                      ),
+                    )}
+                  </div>
+                  <div style={styles.testimonialAuthor}>
+                    {testimonials[currentTestimonial].fullname}
+                  </div>
+                  <div style={styles.testimonialLocation}>
+                    Stayed in {testimonials[currentTestimonial].roomType}
+                  </div>
+                </div>
+
+                <div style={styles.sliderControls}>
+                  <button
+                    style={styles.sliderButton}
+                    onClick={prevTestimonial}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = "#e2e8f0";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f8f5f0";
+                    }}
+                  >
+                    <FaArrowLeft />
+                  </button>
+                  <button
+                    style={styles.sliderButton}
+                    onClick={nextTestimonial}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = "#e2e8f0";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f8f5f0";
+                    }}
+                  >
+                    <FaArrowRight />
+                  </button>
+                </div>
+
+                <div style={styles.sliderDots}>
+                  {testimonials.map((_, index) => (
+                    <button
+                      key={index}
+                      style={{
+                        ...styles.sliderDot,
+                        backgroundColor:
+                          currentTestimonial === index ? "#D09500" : "#e2e8f0",
+                        width: currentTestimonial === index ? "12px" : "10px",
+                        height: currentTestimonial === index ? "12px" : "10px",
+                      }}
+                      onClick={() => setCurrentTestimonial(index)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
-      </section>
-
-      {/* Gallery Section */}
-      <section style={styles.gallerySection}>
+      </motion.section>
+      <motion.section
+        style={styles.gallerySection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: "some" }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Photo Gallery</h2>
           <p style={styles.sectionDescription}>
@@ -1463,7 +1855,6 @@ function Homepage() {
               margin: "0 auto",
             }}
           >
-            {/* Gambar utama (besar) */}
             <div
               style={{
                 gridColumn: isMobile ? "span 2" : "span 2",
@@ -1496,8 +1887,6 @@ function Homepage() {
                 <FaCamera style={styles.galleryIcon} />
               </div>
             </div>
-
-            {/* Spa */}
             <div
               style={{
                 position: "relative",
@@ -1528,8 +1917,6 @@ function Homepage() {
                 <FaCamera style={styles.galleryIcon} />
               </div>
             </div>
-
-            {/* Restaurant */}
             <div
               style={{
                 position: "relative",
@@ -1560,8 +1947,6 @@ function Homepage() {
                 <FaCamera style={styles.galleryIcon} />
               </div>
             </div>
-
-            {/* Pool */}
             <div
               style={{
                 position: "relative",
@@ -1592,8 +1977,6 @@ function Homepage() {
                 <FaCamera style={styles.galleryIcon} />
               </div>
             </div>
-
-            {/* Deluxe Room */}
             <div
               style={{
                 position: "relative",
@@ -1652,7 +2035,6 @@ function Homepage() {
             >
               View All Photos
             </button>
-
           </div>
 
           {galleryOpen && (
@@ -1703,62 +2085,15 @@ function Homepage() {
             </div>
           )}
         </div>
-      </section>
-
-      {/* Special Offers Section
-      <section style={styles.offersSection}>
-        <div style={styles.container}>
-          <h2 style={styles.sectionTitle}>Special Offers</h2>
-          <p style={styles.sectionDescription}>Take advantage of our exclusive deals and packages</p>
-
-          <div style={styles.offersGrid}>
-            {specialOffers.map((offer, index) => (
-              <div
-                key={index}
-                style={styles.offerCard}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateY(-5px)"
-                  e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.1)"
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = "none"
-                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)"
-                }}
-              >
-                <div style={{ ...styles.offerImage, backgroundImage: `url(${offer.image})` }}>
-                  <div style={styles.offerBadge}>{offer.badge}</div>
-                </div>
-                <div style={styles.offerContent}>
-                  <h3 style={styles.offerTitle}>{offer.title}</h3>
-                  <p style={styles.offerDescription}>{offer.description}</p>
-                  <div style={styles.offerDetails}>
-                    <div>
-                      <span style={styles.offerPriceStrike}>{offer.regularPrice}</span>
-                      <span style={styles.offerPrice}>{offer.discountPrice}</span>
-                    </div>
-                    <div style={{ fontSize: "0.875rem", color: "#666" }}>{offer.validUntil}</div>
-                  </div>
-                  <a
-                    href="#booking"
-                    style={styles.offerButton}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#87723B"
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "#D09500"
-                    }}
-                  >
-                    Book This Offer
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section> */}
-
-      {/* Call to Action */}
-      <section style={styles.ctaSection}>
+      </motion.section>
+      <motion.section
+        style={styles.ctaSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.ctaContainer}>
           <h2 style={styles.ctaTitle}>Ready to Experience Our Hospitality?</h2>
           <p style={styles.ctaDescription}>
@@ -1769,7 +2104,8 @@ function Homepage() {
               onClick={handleScrollToFeatured}
               style={styles.secondaryButton}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+                e.currentTarget.style.backgroundColor =
+                  "rgba(255, 255, 255, 0.9)";
                 e.currentTarget.style.transform = "translateY(-2px)";
               }}
               onMouseOut={(e) => {
@@ -1785,7 +2121,8 @@ function Homepage() {
                 to="/signup"
                 style={styles.secondaryButton}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+                  e.currentTarget.style.backgroundColor =
+                    "rgba(255, 255, 255, 0.9)";
                   e.currentTarget.style.transform = "translateY(-2px)";
                 }}
                 onMouseOut={(e) => {
@@ -1796,24 +2133,20 @@ function Homepage() {
                 Create Account
               </Link>
             )}
-
-
           </div>
         </div>
-      </section>
+      </motion.section>
 
-
-
-      {/* Footer */}
       <footer style={styles.footer}>
         <div style={styles.footerContainer}>
           <div>
             <div style={styles.footerLogo}>
               <FaHotel style={{ marginRight: "0.5rem" }} />
-              <span>Golden Stays</span>
+              <span>Royal Gold</span>
             </div>
             <p style={styles.footerText}>
-              Experience luxury, comfort, and convenience at its finest. Your perfect stay starts here.
+              Experience luxury, comfort, and convenience at its finest. Your
+              perfect stay starts here at Royal Gold Batam.
             </p>
           </div>
 
@@ -1825,12 +2158,12 @@ function Homepage() {
             <a href="#amenities" style={styles.footerLink}>
               Amenities
             </a>
-            <a href="#" style={styles.footerLink}>
+            <Link to="/contact" style={styles.footerLink}>
               Location
-            </a>
-            <a href="#" style={styles.footerLink}>
+            </Link>
+            <Link to="/contact" style={styles.footerLink}>
               Contact Us
-            </a>
+            </Link>
           </div>
 
           <div>
@@ -1838,21 +2171,39 @@ function Homepage() {
             <p style={styles.footerText}>123 Hotel Street</p>
             <p style={styles.footerText}>City, State 12345</p>
             <p style={styles.footerText}>Phone: (123) 456-7890</p>
-            <p style={styles.footerText}>Email: info@goldenstays.com</p>
+            <p style={styles.footerText}>Email: info@royalgold.com</p>
           </div>
         </div>
 
         <div style={styles.footerBottom}>
           <p style={styles.copyright}>
-            &copy; 2023 Golden Stays. All rights reserved.
+            &copy; 2026 Royal Gold. All rights reserved.
           </p>
           <div style={styles.footerLinks}>
-            <a href="#" style={{ ...styles.footerLink, marginBottom: 0 }}>
+            <Link
+              to="/privacyPolicy"
+              style={{ ...styles.footerLink, marginBottom: 0 }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "#D09500";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#ccc";
+              }}
+            >
               Privacy Policy
-            </a>
-            <a href="#" style={{ ...styles.footerLink, marginBottom: 0 }}>
+            </Link>
+            <Link
+              to="/termsOfService"
+              style={{ ...styles.footerLink, marginBottom: 0 }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "#D09500";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#ccc";
+              }}
+            >
               Terms of Service
-            </a>
+            </Link>
           </div>
         </div>
       </footer>

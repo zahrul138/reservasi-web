@@ -1,322 +1,192 @@
-import { useState, useEffect } from "react"
-import styled, { createGlobalStyle } from "styled-components";
-import { useNavigate } from 'react-router-dom';
-import { FaLock, FaEnvelope, FaUser, FaEyeSlash, FaEye } from "react-icons/fa"
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaLock, FaEnvelope, FaUser, FaEyeSlash, FaEye } from "react-icons/fa";
 import { motion } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 import Logo from "../assets/images/LogoRG3.png";
+import { API_BASE_URL } from "../services/apiConfig";
 
-const Container = styled.div`
-    min-height: 95vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-`
+const styles = {
+  container: {
+    minHeight: "95vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "1rem",
+    fontFamily: "Segoe UI, Roboto, Helvetica Neue, sans-serif",
+  },
+  card: {
+    width: "100%",
+    maxWidth: "1000px",
+    backgroundColor: "white",
+    borderRadius: "12px",
+    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "row",
+  },
+  signupForm: {
+    width: "50%",
+    padding: "2.5rem",
+    backgroundColor: "white",
+  },
+  title: {
+    fontSize: "1.7rem",
+    fontWeight: 700,
+    textAlign: "center",
+    marginBottom: "0.5rem",
+  },
+  subtitle: {
+    fontSize: "0.9rem",
+    color: "#666",
+    textAlign: "center",
+    marginBottom: "2rem",
+  },
+  formField: {
+    marginBottom: "1.25rem",
+  },
+  label: {
+    display: "block",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    marginBottom: "0.5rem",
+    color: "#87723b",
+  },
+  inputWrapper: {
+    position: "relative",
+    borderRadius: "6px",
+    overflow: "hidden",
+    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
+  },
+  fieldIcon: {
+    position: "absolute",
+    left: "1rem",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#d09500",
+    fontSize: "0.875rem",
+  },
+  input: {
+    width: "100%",
+    padding: "0.75rem 1rem 0.75rem 2.75rem",
+    border: "1px solid #e2e8f0",
+    borderRadius: "6px",
+    fontSize: "0.95rem",
+    outline: "none",
+    boxSizing: "border-box",
+  },
+  togglePassword: {
+    position: "absolute",
+    right: "0.75rem",
+    top: "50%",
+    transform: "translateY(-50%)",
+    cursor: "pointer",
+    color: "#b8860b",
+  },
+  errorText: {
+    color: "#e53e3e",
+    fontSize: "0.75rem",
+    marginTop: "0.5rem",
+  },
+  consentCheckbox: {
+    display: "flex",
+    alignItems: "flex-start",
+    marginBottom: "1rem",
+  },
+  consentLabel: {
+    fontSize: "0.875rem",
+    color: "#4a5568",
+    lineHeight: 1.4,
+  },
+  consentLink: {
+    color: "#d09500",
+    textDecoration: "none",
+    fontWeight: 600,
+  },
+  button: {
+    width: "100%",
+    padding: "0.875rem 1rem",
+    backgroundColor: "#d09500",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "1rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    boxShadow: "0 4px 6px rgba(208, 149, 0, 0.2)",
+    marginTop: "1rem",
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+    cursor: "not-allowed",
+    boxShadow: "none",
+  },
+  signinLink: {
+    marginTop: "1.5rem",
+    textAlign: "center",
+    fontSize: "0.95rem",
+  },
+  benefitsPanel: {
+    width: "50%",
+    background: "linear-gradient(135deg, #87723b, #d09500)",
+    padding: "2.5rem",
+    color: "white",
+    display: "flex",
+    flexDirection: "column",
+  },
+  benefitsTitle: {
+    fontSize: "1.75rem",
+    fontWeight: 700,
+    marginBottom: "2rem",
+  },
+  promoBox: {
+    background: "rgba(255, 255, 255, 0.2)",
+    padding: "15px",
+    borderRadius: "5px",
+    marginBottom: "20px",
+  },
+  popUpOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  popUp: {
+    background: "#fff",
+    padding: "24px",
+    borderRadius: "10px",
+    width: "90%",
+    maxWidth: "360px",
+    textAlign: "center",
+    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+  },
+  popUpText: {
+    fontSize: "1rem",
+    marginBottom: "1.5rem",
+    color: "#333",
+  },
+  popUpButton: {
+    backgroundColor: "#d09500",
+    color: "#fff",
+    padding: "10px 24px",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "0.95rem",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+};
 
-const Card = styled.div`
-  width: 100%;
-  max-width: 1000px;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-
-  @media (min-width: 768px) {
-    flex-direction: row;
-    height: auto;
-
-    .signup-form,
-    .benefits-panel {
-      width: 50%;
-    }
-  }
-`;
-
-const Title = styled.h1`
-  font-size: 1.70rem;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 0.5rem;
-`;
-
-const Subtitle = styled.p`
-  font-size: 0.90rem;
-  color: #666;
-  text-align: center;
-  margin-bottom: 2rem;
-`;
-
-const PromoBox = styled.div`
-  background: rgba(255, 255, 255, 0.2);
-  padding: 15px;
-  border-radius: 5px;
-  margin-bottom: 20px;
-   flex: 1;
-`;
-
-const GlobalStyle = createGlobalStyle`
-  
-  .signup-form {
-    padding: 2.5rem;
-    background-color: white;
-  }
-  
-  .name-fields {
-    display: flex;
-    gap: 1rem;
-  }
-  
-  .name-fields .form-field {
-    flex: 1;
-  }
-  
-  .form-field {
-    margin-bottom: 1.25rem;
-  }
-  
-  .form-field label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #87723b;
-  }
-  
-  .input-wrapper {
-    position: relative;
-    border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-  
-  .field-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #d09500;
-    font-size: 0.875rem;
-  }
-  
-  .input-wrapper input {
-    width: 100%;
-    padding: 0.75rem 1rem 0.75rem 2.75rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    outline: none;
-    transition: all 0.2s;
-    box-sizing: border-box;
-  }
-  
-  .input-wrapper input:focus {
-    border-color: #d09500;
-    box-shadow: 0 0 0 3px rgba(208, 149, 0, 0.15);
-  }
-  
-  .input-wrapper input.input-error {
-    border-color: #e53e3e;
-    box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.15);
-  }
-  
-  .error-text {
-    color: #e53e3e;
-    font-size: 0.75rem;
-    margin-top: 0.5rem;
-  }
-  
-  .consent-checkbox {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-  }
-  
-  .consent-checkbox.required label::after {
-    color: #e53e3e;
-    margin-left: 2px;
-  }
-  
-  .consent-checkbox input {
-    margin-right: 0.75rem;
-    margin-top: 0.25rem;
-  }
-  
-  .consent-checkbox label {
-    font-size: 0.875rem;
-    color: #4a5568;
-    line-height: 1.4;
-  }
-  
-  .consent-checkbox a {
-    color: #d09500;
-    text-decoration: none;
-    font-weight: 600;
-  }
-  
-  .consent-checkbox a:hover {
-    text-decoration: underline;
-    color: #87723b;
-  }
-  
-  .signup-button {
-    width: 100%;
-    padding: 0.875rem 1rem;
-    background-color: #d09500;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 4px 6px rgba(208, 149, 0, 0.2);
-    margin-top: 1rem;
-  }
-  
-  .signup-button:hover {
-    background-color: #87723b;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 8px rgba(135, 114, 59, 0.25);
-  }
-  
-  .signup-button:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(135, 114, 59, 0.25);
-  }
-  
-  .signup-button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-  
-  .button-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .loading-icon {
-    animation: spin 1s linear infinite;
-    margin-right: 0.5rem;
-    height: 1.25rem;
-    width: 1.25rem;
-  }
-  
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  
-  .loading-circle {
-    opacity: 0.25;
-  }
-  
-  .loading-path {
-    opacity: 0.75;
-  }
-  
-  .signin-link {
-    margin-top: 1.5rem;
-    text-align: center;
-    font-size: 0.95rem;
-  }
-  
-  .signin-link span {
-    color: #4a5568;
-  }
-  
-  .signin-link a {
-    color: #d09500;
-    font-weight: 600;
-    text-decoration: none;
-    margin-left: 0.25rem;
-  }
-  
-  .signin-link a:hover {
-    color: #87723b;
-    text-decoration: underline;
-  }
-  
-  .benefits-panel {
-    background: linear-gradient(135deg, #87723b, #d09500);
-    padding: 2.5rem;
-    color: white;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .benefits-panel h2 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin-bottom: 2rem;
-    position: relative;
-    padding-bottom: 0.75rem;
-  }
-  
-  .benefits-panel h2::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 60px;
-    height: 3px;
-    background-color: white;
-    border-radius: 3px;
-  }
-`
-const PopUpOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-`;
-
-const PopUp = styled.div`
-  background: #fff;
-  padding: 24px;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 360px;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-
-  p {
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
-    color: #333;
-  }
-
-  .close-popup {
-    background-color: #d09500;
-    color: #fff;
-    padding: 10px 24px;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s ease-in-out;
-
-    &:hover {
-      background-color: #87723b;
-    }
-  }
-`;
+styles.inputPassword = { ...styles.input, paddingRight: "2.5rem" };
+styles.inputError = { ...styles.input, borderColor: "#e53e3e" };
+styles.inputPasswordError = { ...styles.inputPassword, borderColor: "#e53e3e" };
+styles.buttonEnabled = { ...styles.button };
+styles.buttonDisabledFinal = { ...styles.button, ...styles.buttonDisabled };
 
 function SignUp() {
   const [formData, setFormData] = useState({
@@ -324,15 +194,15 @@ function SignUp() {
     email: "",
     password: "",
     confirmPassword: "",
-  })
+  });
 
-  const [isLoading, setIsLoading] = useState(false)
-  const navigate = useNavigate(); 
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [showError, setShowError] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
-  const [popupMessage, setPopupMessage] = useState('');
+  const [popupMessage, setPopupMessage] = useState("");
   const [showPopup, setShowPopup] = useState(false);
 
   const handleChange = (e) => {
@@ -355,35 +225,34 @@ function SignUp() {
     }
   }, [formData.password, formData.confirmPassword]);
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const dataToSend = { 
-      ...formData, 
-      role: "Guest"
-    };
-  
     try {
-      const res = await fetch('https://localhost:7298/api/user', {
-        method: 'POST',
+      const res = await fetch(`${API_BASE_URL}/api/user/register`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(dataToSend) 
+        body: JSON.stringify(formData),
       });
-  
+
       if (res.ok) {
-        setPopupMessage('Registrasi berhasil!');
+        setPopupMessage("Registration successful!");
         setShowPopup(true);
-        setFormData({ fullname: '', email: '', password: '', confirmPassword: '' });
+        setFormData({
+          fullname: "",
+          email: "",
+          password: "",
+          confirmPassword: "",
+        });
       } else {
-        setPopupMessage('Registrasi gagal. Silakan coba lagi.');
+        setPopupMessage("Registration failed. Please try again.");
         setShowPopup(true);
       }
     } catch (error) {
-      setPopupMessage('Terjadi kesalahan saat mengirim data.');
+      setPopupMessage("An error occurred while submitting the data. Please try again.");
       setShowPopup(true);
     } finally {
       setIsLoading(false);
@@ -392,214 +261,250 @@ function SignUp() {
 
   const handleClosePopup = () => {
     setShowPopup(false);
-    if (popupMessage === 'Registrasi berhasil!') {
-      navigate('/signin');
+    if (popupMessage === "Registration successful!") {
+      navigate("/signin");
     }
   };
 
-
   return (
-    <Container>
-      <GlobalStyle />
-      <Card>
-  <motion.div
-    className="signup-form"
-    initial={{ opacity: 0, y: 50 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.8, ease: "easeOut" }}
-  >
-    <img src={Logo} alt="Logo" style={{ width: "70px", height: "70px", display: "block", margin: "0 auto" }} />
-    <Title>Create Your Account</Title>
-    <Subtitle>Sign up for a better booking experience</Subtitle>
+    <div style={styles.container}>
+      <Helmet>
+        <title>Sign Up</title>
+      </Helmet>
+      <div style={styles.card}>
+        <motion.div
+          style={styles.signupForm}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+        >
+          <img
+            src={Logo}
+            alt="Logo"
+            style={{
+              width: "70px",
+              height: "70px",
+              display: "block",
+              margin: "0 auto",
+            }}
+          />
+          <h1 style={styles.title}>Create Your Account</h1>
+          <p style={styles.subtitle}>Sign up for a better booking experience</p>
 
-    <form onSubmit={handleSubmit}>
-      <div className="name-fields">
-        <div className="form-field">
-          <label htmlFor="fullname">Full Name</label>
-          <div className="input-wrapper">
-            <div className="field-icon">
-              <FaUser />
+          <form onSubmit={handleSubmit}>
+            <div style={styles.formField}>
+              <label htmlFor="fullname" style={styles.label}>
+                Full Name
+              </label>
+              <div style={styles.inputWrapper}>
+                <div style={styles.fieldIcon}>
+                  <FaUser />
+                </div>
+                <input
+                  id="fullname"
+                  name="fullname"
+                  type="text"
+                  required
+                  value={formData.fullname}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
+              </div>
             </div>
-            <input
-              id="fullname"
-              name="fullname"
-              type="text"
-              required
-              value={formData.fullname}
-              onChange={handleChange}
-            />
+
+            <div style={styles.formField}>
+              <label htmlFor="email" style={styles.label}>
+                Email Address
+              </label>
+              <div style={styles.inputWrapper}>
+                <div style={styles.fieldIcon}>
+                  <FaEnvelope />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            <div style={styles.formField}>
+              <label htmlFor="password" style={styles.label}>
+                Create Password
+              </label>
+              <div style={styles.inputWrapper}>
+                <span style={styles.fieldIcon}>
+                  <FaLock />
+                </span>
+                <input
+                  id="password"
+                  name="password"
+                  type={passwordVisible ? "text" : "password"}
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  style={styles.inputPassword}
+                />
+                {formData.password && (
+                  <span
+                    title={
+                      passwordVisible
+                        ? "Sembunyikan password"
+                        : "Tampilkan password"
+                    }
+                    onClick={() => setPasswordVisible(!passwordVisible)}
+                    style={styles.togglePassword}
+                  >
+                    {passwordVisible ? <FaEyeSlash /> : <FaEye />}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={styles.formField}>
+              <label htmlFor="confirmPassword" style={styles.label}>
+                Confirm Password
+              </label>
+              <div style={styles.inputWrapper}>
+                <span style={styles.fieldIcon}>
+                  <FaLock />
+                </span>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={confirmPasswordVisible ? "text" : "password"}
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  onBlur={() => setShowError(true)}
+                  style={
+                    !passwordMatch && showError
+                      ? styles.inputPasswordError
+                      : styles.inputPassword
+                  }
+                />
+                {formData.confirmPassword && (
+                  <span
+                    title={
+                      confirmPasswordVisible
+                        ? "Sembunyikan password"
+                        : "Tampilkan password"
+                    }
+                    onClick={() =>
+                      setConfirmPasswordVisible(!confirmPasswordVisible)
+                    }
+                    style={styles.togglePassword}
+                  >
+                    {confirmPasswordVisible ? <FaEyeSlash /> : <FaEye />}
+                  </span>
+                )}
+              </div>
+              {!passwordMatch && showError && (
+                <p style={styles.errorText}>Passwords do not match</p>
+              )}
+            </div>
+
+            <div style={styles.consentCheckbox}>
+              <input
+                id="terms"
+                name="terms"
+                type="checkbox"
+                required
+                style={{ marginRight: "0.75rem", marginTop: "0.25rem" }}
+              />
+              <label htmlFor="terms" style={styles.consentLabel}>
+                I agree to the{" "}
+                <a href="/termsOfService" style={styles.consentLink}>
+                  Terms of Service
+                </a>{" "}
+                and{" "}
+                <a href="/privacyPolicy" style={styles.consentLink}>
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || !passwordMatch}
+              style={
+                isLoading || !passwordMatch
+                  ? styles.buttonDisabledFinal
+                  : styles.buttonEnabled
+              }
+            >
+              {isLoading ? "Creating your account..." : "Create Account"}
+            </button>
+
+            <div style={styles.signinLink}>
+              <span>Already have an account?</span>{" "}
+              <a href="/signin" style={styles.consentLink}>
+                Sign in to your account
+              </a>
+            </div>
+          </form>
+        </motion.div>
+
+        <motion.div
+          style={styles.benefitsPanel}
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+        >
+          <h2 style={styles.benefitsTitle}>Why Create an Account ?</h2>
+          <div style={styles.promoBox}>
+            <h4>
+              <i className="bi bi-wifi" style={{ marginRight: "8px" }}></i>Free
+              WiFi
+            </h4>
+            <p>
+              Get a free Wifi, and stay connected anytime, anywhere with our
+              internet access.
+            </p>
+          </div>
+          <div style={styles.promoBox}>
+            <h4>
+              <i
+                className="bi bi-brightness-alt-high-fill"
+                style={{ marginRight: "8px" }}
+              ></i>
+              Complimentary Breakfast
+            </h4>
+            <p>
+              Start your day with a free delicious breakfast, freshly prepared
+              in morning.
+            </p>
+          </div>
+          <div style={styles.promoBox}>
+            <h4>
+              <i className="bi bi-gift" style={{ marginRight: "8px" }}></i>
+              Exclusive Offer
+            </h4>
+            <p>
+              Get more exclusive offers and exciting features in our hotel
+              website
+            </p>
+          </div>
+        </motion.div>
+      </div>
+
+      {showPopup && (
+        <div style={styles.popUpOverlay}>
+          <div style={styles.popUp}>
+            <p style={styles.popUpText}>{popupMessage}</p>
+            <button style={styles.popUpButton} onClick={handleClosePopup}>
+              OK
+            </button>
           </div>
         </div>
-      </div>
-
-      <div className="form-field">
-        <label htmlFor="email">Email Address</label>
-        <div className="input-wrapper">
-          <div className="field-icon">
-            <FaEnvelope />
-          </div>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={formData.email}
-            onChange={handleChange}
-          />
-        </div>
-      </div>
-
-      <div className="form-field">
-        <label htmlFor="password">Create Password</label>
-        <div className="input-wrapper">
-          <span className="field-icon">
-            <FaLock />
-          </span>
-          <input
-            id="password"
-            name="password"
-            type={passwordVisible ? "text" : "password"}
-            value={formData.password}
-            onChange={handleChange}
-            required
-            style={{ paddingRight: "2.5rem" }}
-          />
-          {formData.password && (
-            <span
-              className="toggle-password"
-              onClick={() => setPasswordVisible(!passwordVisible)}
-              style={{
-                position: "absolute",
-                right: "0.75rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                cursor: "pointer",
-                color: "#b8860b",
-                zIndex: 5,
-              }}
-            >
-              {passwordVisible ? <FaEyeSlash /> : <FaEye />}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="form-field">
-        <label htmlFor="confirmPassword">Confirm Password</label>
-        <div className="input-wrapper">
-          <span className="field-icon">
-            <FaLock />
-          </span>
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type={confirmPasswordVisible ? "text" : "password"}
-            required
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            onBlur={() => setShowError(true)}
-            className={!passwordMatch && showError ? "input-error" : ""}
-            style={{ paddingRight: "2.5rem" }}
-          />
-          {formData.confirmPassword && (
-            <span
-              className="toggle-password"
-              onClick={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
-              style={{
-                position: "absolute",
-                right: "0.75rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                cursor: "pointer",
-                color: "#b8860b",
-                zIndex: 5,
-              }}
-            >
-              {confirmPasswordVisible ? <FaEyeSlash /> : <FaEye />}
-            </span>
-          )}
-        </div>
-        {!passwordMatch && showError && (
-          <p className="error-text" style={{ color: "red", fontSize: "14px" }}>
-            Passwords do not match
-          </p>
-        )}
-      </div>
-
-      <div className="consent-checkbox required">
-        <input id="terms" name="terms" type="checkbox" required />
-        <label htmlFor="terms">
-          I agree to the <a href="/">Terms of Service</a> and <a href="/">Privacy Policy</a>
-        </label>
-      </div>
-
-      <button type="submit" disabled={isLoading || !passwordMatch} className="signup-button">
-        {isLoading ? (
-          <span className="button-loading">
-            <svg className="loading-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle
-                className="loading-circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="loading-path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Creating your account...
-          </span>
-        ) : (
-          "Create Account"
-        )}
-      </button>
-
-      <div className="signin-link">
-        <span>Already have an account?</span> <a href="/signin">Sign in to your account</a>
-      </div>
-    </form>
-  </motion.div>
-
-  <motion.div
-    className="benefits-panel"
-    initial={{ opacity: 0, y: -50 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-  >
-    <h2>Why Create an Account ?</h2>
-    <PromoBox>
-      <h4><i className="bi bi-wifi" style={{ marginRight: "8px" }}></i>Free WiFi</h4>
-      <p>Get a free Wifi, and stay connected anytime, anywhere with our internet access.</p>
-    </PromoBox>
-    <PromoBox>
-      <h4><i className="bi bi-brightness-alt-high-fill" style={{ marginRight: "8px" }}></i>Complimentary Breakfast</h4>
-      <p>Start your day with a free delicious breakfast, freshly prepared in morning.</p>
-    </PromoBox>
-    <PromoBox>
-      <h4><i className="bi bi-gift" style={{ marginRight: "8px" }}></i>Exclusive Offer</h4>
-      <p>Get more exclusive offers and exciting features in our hotel website</p>
-    </PromoBox>
-  </motion.div>
-</Card>
-
-       {/* Tambahkan ini untuk pop-up */}
-    {showPopup && (
-      <PopUpOverlay>
-        <PopUp>
-          <p>{popupMessage}</p>
-          <button className="close-popup" onClick={handleClosePopup}>
-            OK
-          </button>
-        </PopUp>
-      </PopUpOverlay>
-    )}
-    </Container>
-  )
+      )}
+    </div>
+  );
 }
 
-export default SignUp
+export default SignUp;

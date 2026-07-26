@@ -1,8 +1,5 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import Latar1 from "../assets/images/FotoLatar1.png"
 import HotelLobby from "../assets/images/HotelLobbyBG.png"
 
 import {
@@ -24,7 +21,7 @@ const styles = {
     color: "#333",
     lineHeight: 1.6,
     margin: 0,
-    padding: "10rem",
+    paddingTop: "10rem",
   },
   container: {
     maxWidth: "1200px",
@@ -43,53 +40,6 @@ const styles = {
     margin: "0 auto 3rem",
     color: "#666",
     fontSize: "1.1rem",
-  },
-
-  // Hero section
-  hero: {
-    height: "80vh",
-    minHeight: "600px",
-    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${Latar1})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    color: "white",
-    padding: "2rem",
-    position: "relative",
-  },
-  heroContent: {
-    padding: "2rem",
-    borderRadius: "10px",
-    maxWidth: "800px",
-    color: "#1a1a1a",
-  },
-  smallHeading: {
-    fontSize: "0.75rem",
-    letterSpacing: "1.5px",
-    color: "#fff",
-    marginBottom: "0.5rem",
-    textTransform: "uppercase",
-  },
-  underline: {
-    width: "80px",
-    height: "3px",
-    backgroundColor: "#B4881B",
-    margin: "0 auto 1.5rem auto",
-  },
-  heroTitle: {
-    fontSize: "2.5rem",
-    fontWeight: "bold",
-    marginBottom: "1rem",
-    color: "#fff",
-  },
-  heroDescription: {
-    fontSize: "1rem",
-    marginBottom: "1rem",
-    lineHeight: "1.6",
-    color: "#fff",
   },
 
   // Story section
@@ -214,10 +164,21 @@ const styles = {
     transition: "transform 0.3s, box-shadow 0.3s",
     border: "1px solid #f0f0f0",
   },
-  teamImage: {
+  teamImageWrapper: {
     width: "100%",
-    height: "250px",
+    height: "220px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f8f5f0",
+  },
+  teamImagePhoto: {
+    width: "150px",
+    height: "150px",
+    borderRadius: "50%",
     objectFit: "cover",
+    border: "4px solid white",
+    boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
   },
   teamContent: {
     padding: "1.75rem",
@@ -447,8 +408,8 @@ function AboutPage() {
     {
       name: "Sarah Johnson",
       position: "General Manager",
-      bio: "With over 15 years in hospitality management, Sarah leads our team with passion and dedication to exceptional guest experiences.",
-      image: "/placeholder.svg?height=250&width=280",
+      bio: "...",
+      image: "https://i.pravatar.cc/300?img=47",
       social: {
         linkedin: "#",
         twitter: "#",
@@ -457,8 +418,8 @@ function AboutPage() {
     {
       name: "Michael Chen",
       position: "Executive Chef",
-      bio: "Award-winning chef with expertise in international cuisine, bringing culinary excellence to our restaurant and room service.",
-      image: "/placeholder.svg?height=250&width=280",
+      bio: "...",
+      image: "https://i.pravatar.cc/300?img=13",
       social: {
         linkedin: "#",
         instagram: "#",
@@ -467,15 +428,14 @@ function AboutPage() {
     {
       name: "Emily Rodriguez",
       position: "Guest Relations Director",
-      bio: "Ensuring every guest feels welcomed and valued, Emily oversees our customer service and guest satisfaction initiatives.",
-      image: "/placeholder.svg?height=250&width=280",
+      bio: "...",
+      image: "https://i.pravatar.cc/300?img=32",
       social: {
         linkedin: "#",
         facebook: "#",
       },
     },
   ]
-
   const timelineEvents = [
     {
       year: "1995",
@@ -535,7 +495,7 @@ function AboutPage() {
 
   return (
     <div style={styles.page}>
-    
+
       {/* Our Story Section */}
       <section style={styles.storySection}>
         <div style={isMobile ? { ...styles.storyGrid, gridTemplateColumns: "1fr", gap: "2rem" } : styles.storyGrid}>
@@ -679,7 +639,13 @@ function AboutPage() {
                   e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)"
                 }}
               >
-                <img src={member.image || "/placeholder.svg"} alt={member.name} style={styles.teamImage} />
+                <div style={styles.teamImageWrapper}>
+                  <img
+                    src={member.image}
+                    alt={member.name}
+                    style={styles.teamImagePhoto}
+                  />
+                </div>
                 <div style={styles.teamContent}>
                   <h3 style={styles.teamName}>{member.name}</h3>
                   <p style={styles.teamPosition}>{member.position}</p>
