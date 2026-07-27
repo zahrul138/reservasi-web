@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import HotelLobby from "../assets/images/HotelLobbyBG.png"
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import { motion } from "framer-motion";
+import HotelLobby from "../assets/images/HotelLobbyBG.png";
 
 import {
   FaHotel,
@@ -12,7 +14,7 @@ import {
   FaTwitter,
   FaFacebook,
   FaInstagram,
-} from "react-icons/fa"
+} from "react-icons/fa";
 
 const styles = {
   page: {
@@ -41,8 +43,6 @@ const styles = {
     color: "#666",
     fontSize: "1.1rem",
   },
-
-  // Story section
   storySection: {
     backgroundColor: "#ffffff",
     padding: "5rem 2rem",
@@ -77,8 +77,6 @@ const styles = {
     objectFit: "cover",
     boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
   },
-
-  // Values section
   valuesSection: {
     backgroundColor: "#f8f5f0",
     padding: "5rem 2rem",
@@ -115,8 +113,6 @@ const styles = {
     fontSize: "0.95rem",
     lineHeight: "1.6",
   },
-
-  // Stats section
   statsSection: {
     backgroundColor: "#87723B",
     color: "white",
@@ -143,8 +139,6 @@ const styles = {
     fontSize: "1rem",
     opacity: "0.9",
   },
-
-  // Team section
   teamSection: {
     backgroundColor: "#ffffff",
     padding: "5rem 2rem",
@@ -213,28 +207,47 @@ const styles = {
     transition: "color 0.2s",
     cursor: "pointer",
   },
-
-  // Timeline section
-  timelineSection: {
-    backgroundColor: "#f8f5f0",
-    padding: "5rem 2rem",
-  },
   timeline: {
     maxWidth: "800px",
     margin: "0 auto",
     position: "relative",
+  },
+  timelineLine: {
+    position: "absolute",
+    left: "119px",
+    top: "0.5rem",
+    bottom: "0.5rem",
+    width: "2px",
+    backgroundColor: "#e8ddc8",
   },
   timelineItem: {
     display: "flex",
     marginBottom: "3rem",
     position: "relative",
   },
-  timelineDate: {
+  timelineMarker: {
     minWidth: "120px",
-    fontSize: "1.1rem",
-    fontWeight: "600",
-    color: "#D09500",
     paddingRight: "2rem",
+    paddingTop: "0.3rem",
+    position: "relative",
+    boxSizing: "border-box",
+  },
+  timelineDate: {
+    fontSize: "1.6rem",
+    fontWeight: "700",
+    color: "#87723B",
+    letterSpacing: "0.3px",
+  },
+  timelineDot: {
+    position: "absolute",
+    right: "-8px",
+    top: "0.6rem",
+    width: "16px",
+    height: "16px",
+    borderRadius: "50%",
+    backgroundColor: "#D09500",
+    border: "3px solid #f8f5f0",
+    zIndex: 1,
   },
   timelineContent: {
     flex: 1,
@@ -255,8 +268,6 @@ const styles = {
     fontSize: "0.95rem",
     lineHeight: "1.6",
   },
-
-  // Awards section
   awardsSection: {
     backgroundColor: "#ffffff",
     padding: "5rem 2rem",
@@ -290,8 +301,6 @@ const styles = {
     color: "#666",
     fontSize: "0.9rem",
   },
-
-  // CTA section
   ctaSection: {
     background: "linear-gradient(135deg, #87723B, #D09500)",
     color: "white",
@@ -331,8 +340,6 @@ const styles = {
     textDecoration: "none",
     border: "1px solid #D09500",
   },
-
-  // Footer
   footer: {
     backgroundColor: "#222",
     color: "#f8f5f0",
@@ -389,20 +396,25 @@ const styles = {
     display: "flex",
     gap: "1.5rem",
   },
-}
+};
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 50 },
+  visible: { opacity: 1, y: 0 },
+};
 
 function AboutPage() {
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
+      setIsMobile(window.innerWidth < 768);
+    };
 
-    handleResize()
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [])
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const teamMembers = [
     {
@@ -435,40 +447,45 @@ function AboutPage() {
         facebook: "#",
       },
     },
-  ]
+  ];
   const timelineEvents = [
     {
       year: "1995",
       title: "Foundation",
       description:
-        "Golden Stays was established with a vision to provide exceptional hospitality experiences in Batam.",
+        "Royal Gold was established with a vision to provide exceptional hospitality experiences in Batam.",
     },
     {
       year: "2001",
       title: "First Expansion",
-      description: "Added 50 additional rooms and introduced our signature spa services.",
+      description:
+        "Added 50 additional rooms and introduced our signature spa services.",
     },
     {
       year: "2008",
       title: "5-Star Recognition",
-      description: "Achieved 5-star rating and received our first international hospitality award.",
+      description:
+        "Achieved 5-star rating and received our first international hospitality award.",
     },
     {
       year: "2015",
       title: "Renovation & Modernization",
-      description: "Complete property renovation with modern amenities and sustainable practices.",
+      description:
+        "Complete property renovation with modern amenities and sustainable practices.",
     },
     {
       year: "2020",
       title: "Digital Innovation",
-      description: "Launched contactless services and enhanced digital guest experience platform.",
+      description:
+        "Launched contactless services and enhanced digital guest experience platform.",
     },
     {
       year: "2023",
       title: "Sustainability Initiative",
-      description: "Achieved carbon-neutral certification and launched eco-friendly programs.",
+      description:
+        "Achieved carbon-neutral certification and launched eco-friendly programs.",
     },
-  ]
+  ];
 
   const awards = [
     {
@@ -491,52 +508,82 @@ function AboutPage() {
       year: "2021-2023",
       organization: "TravelGuide Reviews",
     },
-  ]
+  ];
 
   return (
     <div style={styles.page}>
-
-      {/* Our Story Section */}
-      <section style={styles.storySection}>
-        <div style={isMobile ? { ...styles.storyGrid, gridTemplateColumns: "1fr", gap: "2rem" } : styles.storyGrid}>
+      <Helmet>
+        <title>About Us</title>
+      </Helmet>
+      <motion.section
+        style={styles.storySection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <div
+          style={
+            isMobile
+              ? { ...styles.storyGrid, gridTemplateColumns: "1fr", gap: "2rem" }
+              : styles.storyGrid
+          }
+        >
           <div style={styles.storyContent}>
             <h2 style={styles.storyTitle}>Our Journey Began in 1995</h2>
             <p style={styles.storyText}>
-              What started as a small boutique hotel with a big dream has grown into one of Batam's most prestigious
-              hospitality destinations. Our founders envisioned a place where traditional Indonesian warmth meets modern
-              luxury.
+              What started as a small boutique hotel with a big dream has grown
+              into one of Batam's most prestigious hospitality destinations. Our
+              founders envisioned a place where traditional Indonesian warmth
+              meets modern luxury.
             </p>
             <p style={styles.storyText}>
-              Today, Royal Gold Batam Hotel stands as a testament to our commitment to excellence, having welcomed
-              guests from around the world and created countless memorable experiences.
+              Today, Royal Gold Batam Hotel stands as a testament to our
+              commitment to excellence, having welcomed guests from around the
+              world and created countless memorable experiences.
             </p>
             <p style={styles.storyText}>
-              Every corner of our hotel tells a story of dedication, craftsmanship, and the pursuit of perfection in
-              hospitality service.
+              Every corner of our hotel tells a story of dedication,
+              craftsmanship, and the pursuit of perfection in hospitality
+              service.
             </p>
           </div>
           <div>
-            <img src={HotelLobby || "/placeholder.svg"} alt="Hotel Lobby" style={styles.storyImage} />
+            <img
+              src={HotelLobby || "/placeholder.svg"}
+              alt="Hotel Lobby"
+              style={styles.storyImage}
+            />
           </div>
         </div>
-      </section>
-
-      {/* Values Section */}
-      <section style={styles.valuesSection}>
+      </motion.section>
+      <motion.section
+        style={styles.valuesSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Our Core Values</h2>
-          <p style={styles.sectionDescription}>The principles that guide everything we do</p>
+          <p style={styles.sectionDescription}>
+            The principles that guide everything we do
+          </p>
 
           <div style={styles.valuesGrid}>
             <div
               style={styles.valueCard}
               onMouseOver={(e) => {
-                e.currentTarget.style.transform = "translateY(-5px)"
-                e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.1)"
+                e.currentTarget.style.transform = "translateY(-5px)";
+                e.currentTarget.style.boxShadow =
+                  "0 10px 25px rgba(0, 0, 0, 0.1)";
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.transform = "none"
-                e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)"
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 20px rgba(0, 0, 0, 0.08)";
               }}
             >
               <div style={styles.valueIcon}>
@@ -544,20 +591,22 @@ function AboutPage() {
               </div>
               <h3 style={styles.valueTitle}>Genuine Hospitality</h3>
               <p style={styles.valueDescription}>
-                We believe in treating every guest like family, providing warm, personalized service that creates
-                lasting memories.
+                We believe in treating every guest like family, providing warm,
+                personalized service that creates lasting memories.
               </p>
             </div>
 
             <div
               style={styles.valueCard}
               onMouseOver={(e) => {
-                e.currentTarget.style.transform = "translateY(-5px)"
-                e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.1)"
+                e.currentTarget.style.transform = "translateY(-5px)";
+                e.currentTarget.style.boxShadow =
+                  "0 10px 25px rgba(0, 0, 0, 0.1)";
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.transform = "none"
-                e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)"
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 20px rgba(0, 0, 0, 0.08)";
               }}
             >
               <div style={styles.valueIcon}>
@@ -565,20 +614,22 @@ function AboutPage() {
               </div>
               <h3 style={styles.valueTitle}>Excellence</h3>
               <p style={styles.valueDescription}>
-                We strive for perfection in every detail, from our luxurious accommodations to our exceptional dining
-                experiences.
+                We strive for perfection in every detail, from our luxurious
+                accommodations to our exceptional dining experiences.
               </p>
             </div>
 
             <div
               style={styles.valueCard}
               onMouseOver={(e) => {
-                e.currentTarget.style.transform = "translateY(-5px)"
-                e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.1)"
+                e.currentTarget.style.transform = "translateY(-5px)";
+                e.currentTarget.style.boxShadow =
+                  "0 10px 25px rgba(0, 0, 0, 0.1)";
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.transform = "none"
-                e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)"
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 20px rgba(0, 0, 0, 0.08)";
               }}
             >
               <div style={styles.valueIcon}>
@@ -586,18 +637,25 @@ function AboutPage() {
               </div>
               <h3 style={styles.valueTitle}>Sustainability</h3>
               <p style={styles.valueDescription}>
-                We are committed to protecting our beautiful environment through eco-friendly practices and sustainable
-                tourism.
+                We are committed to protecting our beautiful environment through
+                eco-friendly practices and sustainable tourism.
               </p>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Stats Section */}
-      <section style={styles.statsSection}>
+      </motion.section>
+      <motion.section
+        style={styles.statsSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
-          <h2 style={{ ...styles.sectionTitle, color: "white" }}>Our Achievements</h2>
+          <h2 style={{ ...styles.sectionTitle, color: "white" }}>
+            Our Achievements
+          </h2>
           <div style={styles.statsGrid}>
             <div style={styles.statCard}>
               <div style={styles.statNumber}>25+</div>
@@ -617,13 +675,20 @@ function AboutPage() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Team Section */}
-      <section style={styles.teamSection}>
+      </motion.section>
+      <motion.section
+        style={styles.teamSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Meet Our Leadership Team</h2>
-          <p style={styles.sectionDescription}>The passionate professionals behind your exceptional experience</p>
+          <p style={styles.sectionDescription}>
+            The passionate professionals behind your exceptional experience
+          </p>
 
           <div style={styles.teamGrid}>
             {teamMembers.map((member, index) => (
@@ -631,12 +696,14 @@ function AboutPage() {
                 key={index}
                 style={styles.teamCard}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateY(-5px)"
-                  e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.1)"
+                  e.currentTarget.style.transform = "translateY(-5px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 10px 25px rgba(0, 0, 0, 0.1)";
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.transform = "none"
-                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)"
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 20px rgba(0, 0, 0, 0.08)";
                 }}
               >
                 <div style={styles.teamImageWrapper}>
@@ -656,10 +723,10 @@ function AboutPage() {
                         href={member.social.linkedin}
                         style={styles.socialLink}
                         onMouseOver={(e) => {
-                          e.currentTarget.style.color = "#D09500"
+                          e.currentTarget.style.color = "#D09500";
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.color = "#87723B"
+                          e.currentTarget.style.color = "#87723B";
                         }}
                       >
                         <FaLinkedin />
@@ -670,10 +737,10 @@ function AboutPage() {
                         href={member.social.twitter}
                         style={styles.socialLink}
                         onMouseOver={(e) => {
-                          e.currentTarget.style.color = "#D09500"
+                          e.currentTarget.style.color = "#D09500";
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.color = "#87723B"
+                          e.currentTarget.style.color = "#87723B";
                         }}
                       >
                         <FaTwitter />
@@ -684,10 +751,10 @@ function AboutPage() {
                         href={member.social.instagram}
                         style={styles.socialLink}
                         onMouseOver={(e) => {
-                          e.currentTarget.style.color = "#D09500"
+                          e.currentTarget.style.color = "#D09500";
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.color = "#87723B"
+                          e.currentTarget.style.color = "#87723B";
                         }}
                       >
                         <FaInstagram />
@@ -698,10 +765,10 @@ function AboutPage() {
                         href={member.social.facebook}
                         style={styles.socialLink}
                         onMouseOver={(e) => {
-                          e.currentTarget.style.color = "#D09500"
+                          e.currentTarget.style.color = "#D09500";
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.color = "#87723B"
+                          e.currentTarget.style.color = "#87723B";
                         }}
                       >
                         <FaFacebook />
@@ -713,18 +780,29 @@ function AboutPage() {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Timeline Section */}
-      <section style={styles.timelineSection}>
+      </motion.section>
+      <motion.section
+        style={styles.timelineSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Our Journey Through Time</h2>
-          <p style={styles.sectionDescription}>Key milestones in our commitment to hospitality excellence</p>
+          <p style={styles.sectionDescription}>
+            Key milestones in our commitment to hospitality excellence
+          </p>
 
           <div style={styles.timeline}>
+            <div style={styles.timelineLine} />
             {timelineEvents.map((event, index) => (
               <div key={index} style={styles.timelineItem}>
-                <div style={styles.timelineDate}>{event.year}</div>
+                <div style={styles.timelineMarker}>
+                  <div style={styles.timelineDate}>{event.year}</div>
+                  <div style={styles.timelineDot} />
+                </div>
                 <div style={styles.timelineContent}>
                   <h3 style={styles.timelineTitle}>{event.title}</h3>
                   <p style={styles.timelineDescription}>{event.description}</p>
@@ -733,13 +811,20 @@ function AboutPage() {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Awards Section */}
-      <section style={styles.awardsSection}>
+      </motion.section>
+      <motion.section
+        style={styles.awardsSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Recognition & Awards</h2>
-          <p style={styles.sectionDescription}>Honored by industry leaders for our commitment to excellence</p>
+          <p style={styles.sectionDescription}>
+            Honored by industry leaders for our commitment to excellence
+          </p>
 
           <div style={styles.awardsGrid}>
             {awards.map((award, index) => (
@@ -747,10 +832,10 @@ function AboutPage() {
                 key={index}
                 style={styles.awardCard}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateY(-3px)"
+                  e.currentTarget.style.transform = "translateY(-3px)";
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.transform = "none"
+                  e.currentTarget.style.transform = "none";
                 }}
               >
                 <div style={styles.awardIcon}>
@@ -758,31 +843,40 @@ function AboutPage() {
                 </div>
                 <h3 style={styles.awardTitle}>{award.title}</h3>
                 <p style={styles.awardYear}>{award.year}</p>
-                <p style={{ ...styles.awardYear, fontSize: "0.8rem" }}>{award.organization}</p>
+                <p style={{ ...styles.awardYear, fontSize: "0.8rem" }}>
+                  {award.organization}
+                </p>
               </div>
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Call to Action */}
-      <section style={styles.ctaSection}>
+      </motion.section>
+      <motion.section
+        style={styles.ctaSection}
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: "some" }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div style={styles.ctaContainer}>
           <h2 style={styles.ctaTitle}>Experience Our Story Yourself</h2>
           <p style={styles.ctaDescription}>
-            Join thousands of satisfied guests who have made Royal Gold Batam Hotel their home away from home
+            Join thousands of satisfied guests who have made Royal Gold Batam
+            Hotel their home away from home
           </p>
           <div style={styles.ctaButtons}>
             <Link
               to="/"
               style={styles.primaryButton}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)"
-                e.currentTarget.style.transform = "translateY(-2px)"
+                e.currentTarget.style.backgroundColor =
+                  "rgba(255, 255, 255, 0.9)";
+                e.currentTarget.style.transform = "translateY(-2px)";
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "white"
-                e.currentTarget.style.transform = "none"
+                e.currentTarget.style.backgroundColor = "white";
+                e.currentTarget.style.transform = "none";
               }}
             >
               Book Your Stay
@@ -791,42 +885,42 @@ function AboutPage() {
               to="/contact"
               style={styles.primaryButton}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)"
-                e.currentTarget.style.transform = "translateY(-2px)"
+                e.currentTarget.style.backgroundColor =
+                  "rgba(255, 255, 255, 0.9)";
+                e.currentTarget.style.transform = "translateY(-2px)";
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "white"
-                e.currentTarget.style.transform = "none"
+                e.currentTarget.style.backgroundColor = "white";
+                e.currentTarget.style.transform = "none";
               }}
             >
               Contact Us
             </Link>
           </div>
         </div>
-      </section>
-
-      {/* Footer */}
+      </motion.section>
       <footer style={styles.footer}>
         <div style={styles.footerContainer}>
           <div>
             <div style={styles.footerLogo}>
               <FaHotel style={{ marginRight: "0.5rem" }} />
-              <span>Golden Stays</span>
+              <span>Royal Gold</span>
             </div>
             <p style={styles.footerText}>
-              Experience luxury, comfort, and convenience at its finest. Your perfect stay starts here.
+              Experience luxury, comfort, and convenience at its finest. Your
+              perfect stay starts here.
             </p>
           </div>
 
           <div>
             <h3 style={styles.footerTitle}>Quick Links</h3>
-            <Link to="/rooms" style={styles.footerLink}>
+            <Link to="/home" style={styles.footerLink}>
               Rooms & Suites
             </Link>
-            <Link to="/amenities" style={styles.footerLink}>
+            <Link to="/home" style={styles.footerLink}>
               Amenities
             </Link>
-            <Link to="/location" style={styles.footerLink}>
+            <Link to="/contact" style={styles.footerLink}>
               Location
             </Link>
             <Link to="/contact" style={styles.footerLink}>
@@ -839,24 +933,32 @@ function AboutPage() {
             <p style={styles.footerText}>123 Hotel Street</p>
             <p style={styles.footerText}>Batam, Indonesia 29432</p>
             <p style={styles.footerText}>Phone: +62 778 123-4567</p>
-            <p style={styles.footerText}>Email: info@goldenstays.com</p>
+            <p style={styles.footerText}>Email: info@royalgold.com</p>
           </div>
         </div>
 
         <div style={styles.footerBottom}>
-          <p style={styles.copyright}>&copy; 2023 Golden Stays. All rights reserved.</p>
+          <p style={styles.copyright}>
+            &copy; 2026 Royal Gold. All rights reserved.
+          </p>
           <div style={styles.footerLinks}>
-            <Link to="/privacy" style={{ ...styles.footerLink, marginBottom: 0 }}>
+            <Link
+              to="/privacyPolicy"
+              style={{ ...styles.footerLink, marginBottom: 0 }}
+            >
               Privacy Policy
             </Link>
-            <Link to="/terms" style={{ ...styles.footerLink, marginBottom: 0 }}>
+            <Link
+              to="/termsOfService"
+              style={{ ...styles.footerLink, marginBottom: 0 }}
+            >
               Terms of Service
             </Link>
           </div>
         </div>
       </footer>
     </div>
-  )
+  );
 }
 
-export default AboutPage
+export default AboutPage;

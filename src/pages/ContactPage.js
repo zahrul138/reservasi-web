@@ -1,9 +1,8 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import Latar1 from "../assets/images/FotoLatar1.png"
-
+import { API_BASE_URL } from "../services/apiConfig"
+import { Helmet } from "react-helmet-async"
+import { motion } from "framer-motion"
 import {
   FaHotel,
   FaPhone,
@@ -30,7 +29,7 @@ const styles = {
     color: "#333",
     lineHeight: 1.6,
     margin: 0,
-    padding: 0,
+    paddingTop: "10rem",
   },
   container: {
     maxWidth: "1200px",
@@ -50,55 +49,6 @@ const styles = {
     color: "#666",
     fontSize: "1.1rem",
   },
-
-  // Hero section
-  hero: {
-    height: "80vh",
-    minHeight: "600px",
-    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${Latar1})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    color: "white",
-    padding: "2rem",
-    position: "relative",
-  },
-  heroContent: {
-    padding: "2rem",
-    borderRadius: "10px",
-    maxWidth: "800px",
-    color: "#1a1a1a",
-  },
-  smallHeading: {
-    fontSize: "0.75rem",
-    letterSpacing: "1.5px",
-    color: "#fff",
-    marginBottom: "0.5rem",
-    textTransform: "uppercase",
-  },
-  underline: {
-    width: "80px",
-    height: "3px",
-    backgroundColor: "#B4881B",
-    margin: "0 auto 1.5rem auto",
-  },
-  heroTitle: {
-    fontSize: "2.5rem",
-    fontWeight: "bold",
-    marginBottom: "1rem",
-    color: "#fff",
-  },
-  heroDescription: {
-    fontSize: "1rem",
-    marginBottom: "1rem",
-    lineHeight: "1.6",
-    color: "#fff",
-  },
-
-  // Contact Info Section
   contactInfoSection: {
     backgroundColor: "#ffffff",
     padding: "5rem 2rem",
@@ -141,8 +91,6 @@ const styles = {
     fontWeight: 500,
     transition: "color 0.2s",
   },
-
-  // Contact Form Section
   formSection: {
     backgroundColor: "#f8f5f0",
     padding: "5rem 2rem",
@@ -239,8 +187,6 @@ const styles = {
     alignSelf: "center",
     minWidth: "200px",
   },
-
-  // Location Section
   locationSection: {
     backgroundColor: "#ffffff",
     padding: "5rem 2rem",
@@ -283,20 +229,13 @@ const styles = {
     fontSize: "1.1rem",
     marginTop: "0.2rem",
   },
-  mapPlaceholder: {
+  mapEmbed: {
     width: "100%",
     height: "400px",
-    backgroundColor: "#f0f0f0",
     borderRadius: "12px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#666",
-    fontSize: "1.1rem",
-    border: "2px dashed #ddd",
+    border: "none",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
   },
-
-  // Hours Section
   hoursSection: {
     backgroundColor: "#f8f5f0",
     padding: "5rem 2rem",
@@ -339,8 +278,6 @@ const styles = {
     color: "#87723B",
     fontWeight: 600,
   },
-
-  // FAQ Section
   faqSection: {
     backgroundColor: "#ffffff",
     padding: "5rem 2rem",
@@ -369,8 +306,6 @@ const styles = {
     fontSize: "0.9rem",
     lineHeight: "1.6",
   },
-
-  // Social Section
   socialSection: {
     backgroundColor: "#87723B",
     color: "white",
@@ -406,8 +341,6 @@ const styles = {
     transition: "all 0.3s",
     textDecoration: "none",
   },
-
-  // CTA section
   ctaSection: {
     background: "linear-gradient(135deg, #87723B, #D09500)",
     color: "white",
@@ -447,8 +380,6 @@ const styles = {
     textDecoration: "none",
     border: "1px solid #D09500",
   },
-
-  // Footer
   footer: {
     backgroundColor: "#222",
     color: "#f8f5f0",
@@ -507,6 +438,11 @@ const styles = {
   },
 }
 
+const fadeInUp = {
+  hidden: { opacity: 0, y: 50 },
+  visible: { opacity: 1, y: 0 },
+}
+
 function ContactPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [formData, setFormData] = useState({
@@ -536,20 +472,35 @@ function ContactPage() {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Handle form submission here
-    console.log("Form submitted:", formData)
-    alert("Thank you for your message! We'll get back to you soon.")
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      subject: "",
-      inquiryType: "",
-      message: "",
-    })
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        alert("Thank you for your message! We'll get back to you soon.")
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          subject: "",
+          inquiryType: "",
+          message: "",
+        })
+      } else {
+        alert("Failed to send your message. Please try again.")
+      }
+    } catch (error) {
+      console.error(error)
+      alert("An error occurred while sending your message.")
+    }
   }
 
   const faqItems = [
@@ -587,9 +538,10 @@ function ContactPage() {
 
   return (
     <div style={styles.page}>
-      
-      {/* Contact Information Section */}
-      <section style={styles.contactInfoSection}>
+      <Helmet>
+        <title>Contact Us</title>
+      </Helmet>
+      <motion.section style={styles.contactInfoSection} variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>How to Reach Us</h2>
           <p style={styles.sectionDescription}>Multiple ways to connect with our hospitality team</p>
@@ -642,13 +594,13 @@ function ContactPage() {
               <h3 style={styles.contactTitle}>Email</h3>
               <div style={styles.contactDetails}>
                 <p>
-                  <a href="mailto:info@goldenstays.com" style={styles.contactLink}>
-                    info@goldenstays.com
+                  <a href="mailto:info@royalgold.com" style={styles.contactLink}>
+                    info@royalgold.com
                   </a>
                 </p>
                 <p>
-                  <a href="mailto:reservations@goldenstays.com" style={styles.contactLink}>
-                    reservations@goldenstays.com
+                  <a href="mailto:reservations@royalgold.com" style={styles.contactLink}>
+                    reservations@royalgold.com
                   </a>
                 </p>
                 <p style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>We respond within 2 hours</p>
@@ -679,10 +631,8 @@ function ContactPage() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Contact Form Section */}
-      <section style={styles.formSection}>
+     </motion.section>
+      <motion.section style={styles.formSection} variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
         <div style={styles.formContainer}>
           <h2 style={styles.formTitle}>Send Us a Message</h2>
           <p style={styles.formDescription}>
@@ -854,10 +804,8 @@ function ContactPage() {
             </button>
           </form>
         </div>
-      </section>
-
-      {/* Location Section */}
-      <section style={styles.locationSection}>
+     </motion.section>
+      <motion.section style={styles.locationSection} variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
         <div
           style={isMobile ? { ...styles.locationGrid, gridTemplateColumns: "1fr", gap: "2rem" } : styles.locationGrid}
         >
@@ -907,19 +855,17 @@ function ContactPage() {
               </div>
             </div>
           </div>
-
-          <div style={styles.mapPlaceholder}>
-            <div style={{ textAlign: "center" }}>
-              <FaMapMarkerAlt style={{ fontSize: "3rem", color: "#D09500", marginBottom: "1rem" }} />
-              <p>Interactive Map</p>
-              <p style={{ fontSize: "0.9rem", opacity: "0.7" }}>Click to view detailed location and directions</p>
-            </div>
-          </div>
+          <iframe
+            title="Royal Gold Hotel Location"
+            src="https://www.google.com/maps?q=Batam+Center,+Batam,+Kepulauan+Riau&output=embed"
+            style={styles.mapEmbed}
+            allowFullScreen=""
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          ></iframe>
         </div>
-      </section>
-
-      {/* Hours & Services Section */}
-      <section style={styles.hoursSection}>
+      </motion.section>
+      <motion.section style={styles.hoursSection} variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Hours & Services</h2>
           <p style={styles.sectionDescription}>Our team is here to serve you around the clock</p>
@@ -983,10 +929,8 @@ function ContactPage() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section style={styles.faqSection}>
+      </motion.section>
+      <motion.section style={styles.faqSection} variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
         <div style={styles.container}>
           <h2 style={styles.sectionTitle}>Frequently Asked Questions</h2>
           <p style={styles.sectionDescription}>Quick answers to common inquiries</p>
@@ -1000,10 +944,8 @@ function ContactPage() {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Social Media Section */}
-      <section style={styles.socialSection}>
+      </motion.section>
+      <motion.section style={styles.socialSection} variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
         <div style={styles.container}>
           <h2 style={styles.socialTitle}>Connect With Us</h2>
           <p style={styles.socialDescription}>
@@ -1083,55 +1025,13 @@ function ContactPage() {
             </a>
           </div>
         </div>
-      </section>
-
-      {/* Call to Action */}
-      <section style={styles.ctaSection}>
-        <div style={styles.ctaContainer}>
-          <h2 style={styles.ctaTitle}>Ready to Experience Luxury?</h2>
-          <p style={styles.ctaDescription}>
-            Book your stay today or contact us for personalized assistance with your reservation
-          </p>
-          <div style={styles.ctaButtons}>
-            <Link
-              to="/"
-              style={styles.primaryButton}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)"
-                e.currentTarget.style.transform = "translateY(-2px)"
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "white"
-                e.currentTarget.style.transform = "none"
-              }}
-            >
-              Book Now
-            </Link>
-            <a
-              href="tel:+6277812345678"
-              style={styles.primaryButton}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)"
-                e.currentTarget.style.transform = "translateY(-2px)"
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "white"
-                e.currentTarget.style.transform = "none"
-              }}
-            >
-              Call Us Now
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
+     </motion.section>  
       <footer style={styles.footer}>
         <div style={styles.footerContainer}>
           <div>
             <div style={styles.footerLogo}>
               <FaHotel style={{ marginRight: "0.5rem" }} />
-              <span>Golden Stays</span>
+              <span>Royal Gold</span>
             </div>
             <p style={styles.footerText}>
               Experience luxury, comfort, and convenience at its finest. Your perfect stay starts here.
@@ -1140,10 +1040,10 @@ function ContactPage() {
 
           <div>
             <h3 style={styles.footerTitle}>Quick Links</h3>
-            <Link to="/rooms" style={styles.footerLink}>
+            <Link to="/home" style={styles.footerLink}>
               Rooms & Suites
             </Link>
-            <Link to="/amenities" style={styles.footerLink}>
+            <Link to="/home" style={styles.footerLink}>
               Amenities
             </Link>
             <Link to="/about" style={styles.footerLink}>
@@ -1159,17 +1059,17 @@ function ContactPage() {
             <p style={styles.footerText}>Jl. Hang Tuah No. 123</p>
             <p style={styles.footerText}>Batam, Indonesia 29432</p>
             <p style={styles.footerText}>Phone: +62 778 123-4567</p>
-            <p style={styles.footerText}>Email: info@goldenstays.com</p>
+            <p style={styles.footerText}>Email: info@royalgold.com</p>
           </div>
         </div>
 
         <div style={styles.footerBottom}>
-          <p style={styles.copyright}>&copy; 2023 Golden Stays. All rights reserved.</p>
+          <p style={styles.copyright}>&copy; 2026 Royal Gold. All rights reserved.</p>
           <div style={styles.footerLinks}>
-            <Link to="/privacy" style={{ ...styles.footerLink, marginBottom: 0 }}>
+            <Link to="/privacyPolicy" style={{ ...styles.footerLink, marginBottom: 0 }}>
               Privacy Policy
             </Link>
-            <Link to="/terms" style={{ ...styles.footerLink, marginBottom: 0 }}>
+            <Link to="/termsOfService" style={{ ...styles.footerLink, marginBottom: 0 }}>
               Terms of Service
             </Link>
           </div>
