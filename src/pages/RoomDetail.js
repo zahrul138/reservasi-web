@@ -1,7 +1,5 @@
-"use client"
-
-import { useState, useRef, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   FaArrowLeft,
   FaArrowRight,
@@ -21,57 +19,202 @@ import {
   FaUserFriends,
   FaWifi,
   FaWineGlassAlt,
-} from "react-icons/fa"
+} from "react-icons/fa";
 import { API_BASE_URL } from "../services/apiConfig";
+import { motion, AnimatePresence } from "framer-motion";
 
-
+const styles = {
+  detailsTabs: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "1rem",
+    marginBottom: "2rem",
+    borderBottom: "1px solid #e2e8f0",
+    paddingBottom: "1rem",
+    flexWrap: "wrap",
+  },
+  tabButton: {
+    padding: "0.75rem 1.5rem",
+    backgroundColor: "transparent",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontWeight: 500,
+    color: "#666",
+    transition: "all 0.3s",
+  },
+  tabButtonActive: {
+    backgroundColor: "#D09500",
+    color: "white",
+  },
+  detailsContent: {
+    backgroundColor: "white",
+    padding: "2rem",
+    borderRadius: "8px",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+  },
+  descriptionParagraph: {
+    color: "#666",
+    lineHeight: 1.8,
+    marginBottom: "1.5rem",
+  },
+  roomFeaturesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "1rem",
+    marginTop: "2rem",
+  },
+  featureItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  featureIcon: {
+    color: "#D09500",
+    fontSize: "0.8rem",
+  },
+  amenitiesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "2rem",
+  },
+  amenityCard: {
+    backgroundColor: "#f8f5f0",
+    padding: "1.5rem",
+    borderRadius: "8px",
+    textAlign: "center",
+    transition: "transform 0.3s, box-shadow 0.3s",
+  },
+  amenityIcon: {
+    fontSize: "2rem",
+    color: "#D09500",
+    marginBottom: "1rem",
+  },
+  amenityName: {
+    fontSize: "1rem",
+    color: "#87723B",
+  },
+  policiesList: {
+    listStyle: "none",
+    padding: 0,
+  },
+  policyListItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+    padding: "1rem 0",
+    borderBottom: "1px solid #e2e8f0",
+    fontSize: "1rem",
+  },
+  reviewsSummary: {
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: "2rem",
+  },
+  averageRatingBlock: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  ratingNumber: {
+    fontSize: "3rem",
+    fontWeight: 700,
+    color: "#D09500",
+  },
+  ratingStars: {
+    display: "flex",
+    gap: "0.25rem",
+    fontSize: "1.2rem",
+  },
+  ratingCountText: {
+    color: "#666",
+    fontSize: "0.9rem",
+  },
+  reviewsList: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: "2rem",
+  },
+  reviewCard: {
+    backgroundColor: "#f8f5f0",
+    padding: "1.5rem",
+    borderRadius: "8px",
+  },
+  reviewHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "1rem",
+  },
+  reviewerName: {
+    fontWeight: 600,
+    color: "#87723B",
+  },
+  reviewDate: {
+    fontSize: "0.875rem",
+    color: "#666",
+  },
+  reviewRatingRow: {
+    marginBottom: "1rem",
+    display: "flex",
+    gap: "0.25rem",
+  },
+  reviewTitle: {
+    marginBottom: "0.5rem",
+    color: "#333",
+  },
+  reviewComment: {
+    color: "#666",
+    lineHeight: 1.7,
+  },
+};
 function RoomDetail() {
-  // Untuk memastikan data yang tampil adalah teks bersih
   const parseSafe = (value) => {
-    if (Array.isArray(value)) return value
+    if (Array.isArray(value)) return value;
     if (typeof value === "string") {
       try {
-        const parsed = JSON.parse(value)
-        if (Array.isArray(parsed)) return parsed
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
         return value
           .split(",")
           .map((v) => v.trim())
-          .filter(Boolean)
+          .filter(Boolean);
       } catch {
         return value
           .split(",")
           .map((v) => v.trim())
-          .filter(Boolean)
+          .filter(Boolean);
       }
     }
-    return []
-  }
+    return [];
+  };
 
-  const { id } = useParams()
-  const [room, setRoom] = useState(null)
-  const [checkIn, setCheckIn] = useState("")
-  const [checkOut, setCheckOut] = useState("")
-  const [adults, setAdults] = useState(1)
-  const [children, setChildren] = useState(0)
-  const [isGuestDropdownOpen, setIsGuestDropdownOpen] = useState(false)
-  const [currentImage, setCurrentImage] = useState(0)
-  const [galleryOpen, setGalleryOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("description")
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const guestDropdownRef = useRef(null)
+  const { id } = useParams();
+  const [room, setRoom] = useState(null);
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
+  const [isGuestDropdownOpen, setIsGuestDropdownOpen] = useState(false);
+  const [currentImage, setCurrentImage] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("description");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const guestDropdownRef = useRef(null);
   const [reviews, setReviews] = useState([]);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  // Fetch room data from API
   useEffect(() => {
-    fetch(`https://localhost:7298/api/room/${id}`)
+    fetch(`${API_BASE_URL}/api/room/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setRoom({
           ...data,
           images: [data.image1, data.image2, data.image3]
             .filter(Boolean)
-            .map((img) => (img.startsWith("http") ? img : `https://localhost:7298${img}`)),
+            .map((img) =>
+              img.startsWith("http") ? img : `${API_BASE_URL}${img}`,
+            ),
           features: parseSafe(data.features),
           amenities: parseSafe(data.amenities).map((name) => {
             const iconObj = {
@@ -83,27 +226,28 @@ function RoomDetail() {
               "Room service": <FaDoorOpen />,
               "Luxury bathroom": <FaBath />,
               "Premium bedding": <FaBed />,
-            }
-            return { icon: iconObj[name] || <FaCheck />, name }
+            };
+            return { icon: iconObj[name] || <FaCheck />, name };
           }),
           policies: parseSafe(data.policies),
           reviews: [],
-          similarRooms: [],
-        })
-      })
-    const user = localStorage.getItem("user")
-    if (user) setIsLoggedIn(true)
-  }, [id])
+        });
+      });
+    const user = localStorage.getItem("user");
+    if (user) setIsLoggedIn(true);
+  }, [id]);
 
   useEffect(() => {
     const fetchRoomReviews = async () => {
       try {
-        const response = await fetch(`https://localhost:7298/api/Review/room/${id}/approved`);
-        if (!response.ok) throw new Error('Failed to fetch reviews');
+        const response = await fetch(
+          `${API_BASE_URL}/api/Review/room/${id}/approved`,
+        );
+        if (!response.ok) throw new Error("Failed to fetch reviews");
         const data = await response.json();
         setReviews(data);
       } catch (error) {
-        console.error('Error fetching room reviews:', error);
+        console.error("Error fetching room reviews:", error);
       }
     };
 
@@ -112,41 +256,50 @@ function RoomDetail() {
     }
   }, [id]);
 
-  // --- Booking Logic ---
-  const totalGuests = adults + children
-  const toggleGuestDropdown = () => setIsGuestDropdownOpen(!isGuestDropdownOpen)
-  const incrementAdults = () => setAdults(adults + 1)
-  const decrementAdults = () => setAdults(adults > 1 ? adults - 1 : 1)
-  const incrementChildren = () => setChildren(children + 1)
-  const decrementChildren = () => setChildren(children > 0 ? children - 1 : 0)
+  const totalGuests = adults + children;
+  const toggleGuestDropdown = () =>
+    setIsGuestDropdownOpen(!isGuestDropdownOpen);
+  const incrementAdults = () => setAdults(adults + 1);
+  const decrementAdults = () => setAdults(adults > 1 ? adults - 1 : 1);
+  const incrementChildren = () => setChildren(children + 1);
+  const decrementChildren = () => setChildren(children > 0 ? children - 1 : 0);
 
   const formatRupiah = (number) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(number)
+    }).format(number);
 
   const calculateTotalPrice = () => {
-    if (!room) return 0
-    const roomPricePerNight = Number.parseFloat(room.price) || 0
-    const nights = checkIn && checkOut ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)) : 0
-    return roomPricePerNight * nights
-  }
+    if (!room) return 0;
+    const roomPricePerNight = Number.parseFloat(room.price) || 0;
+    const nights =
+      checkIn && checkOut
+        ? Math.ceil(
+            (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24),
+          )
+        : 0;
+    return roomPricePerNight * nights;
+  };
 
   const handleBookNow = (e) => {
-    e.preventDefault()
-    const storedUser = localStorage.getItem("user")
+    e.preventDefault();
+    const storedUser = localStorage.getItem("user");
     if (!storedUser) {
-      alert("You must be logged in to make a booking.")
-      return
+      alert("You must be logged in to make a booking.");
+      return;
     }
     if (!checkIn || !checkOut) {
-      alert("Isi tanggal check-in dan check-out!")
-      return
+      alert("Please fill in the check-in and check-out dates!");
+      return;
     }
-    const user = JSON.parse(storedUser)
-    const totalPrice = calculateTotalPrice()
+    if (new Date(checkOut) <= new Date(checkIn)) {
+      alert("Check-out date must be after the check-in date!");
+      return;
+    }
+    const user = JSON.parse(storedUser);
+    const totalPrice = calculateTotalPrice();
     const bookingDetails = {
       userId: user.id,
       fullname: user.fullname,
@@ -158,41 +311,65 @@ function RoomDetail() {
       adultGuests: adults,
       childGuests: children,
       totalPrice: totalPrice,
-    }
-    navigate("/bookingformone", { state: { bookingDetails } })
-  }
+    };
+    navigate("/bookingformone", { state: { bookingDetails } });
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (guestDropdownRef.current && !guestDropdownRef.current.contains(event.target)) {
-        setIsGuestDropdownOpen(false)
+      if (
+        guestDropdownRef.current &&
+        !guestDropdownRef.current.contains(event.target)
+      ) {
+        setIsGuestDropdownOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [guestDropdownRef])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [guestDropdownRef]);
 
   // Gallery Navigation
-  const nextImage = () => setCurrentImage((prev) => (prev === (room?.images?.length || 1) - 1 ? 0 : prev + 1))
-  const prevImage = () => setCurrentImage((prev) => (prev === 0 ? (room?.images?.length || 1) - 1 : prev - 1))
-  const selectImage = (index) => setCurrentImage(index)
+  const nextImage = () =>
+    setCurrentImage((prev) =>
+      prev === (room?.images?.length || 1) - 1 ? 0 : prev + 1,
+    );
+  const prevImage = () =>
+    setCurrentImage((prev) =>
+      prev === 0 ? (room?.images?.length || 1) - 1 : prev - 1,
+    );
+  const selectImage = (index) => setCurrentImage(index);
   const openGallery = (idx = 0) => {
-    setCurrentImage(idx)
-    setGalleryOpen(true)
-    document.body.style.overflow = "hidden"
-  }
+    setCurrentImage(idx);
+    setGalleryOpen(true);
+    document.body.style.overflow = "hidden";
+  };
   const closeGallery = () => {
-    setGalleryOpen(false)
-    document.body.style.overflow = "auto"
-  }
+    setGalleryOpen(false);
+    document.body.style.overflow = "auto";
+  };
 
-  if (!room) return <div style={{ color: "#D09500", textAlign: "center", marginTop: 100 }}>Loading...</div>
+  if (!room)
+    return (
+      <div style={{ color: "#D09500", textAlign: "center", marginTop: 100 }}>
+        Loading...
+      </div>
+    );
 
-  // Calculate average rating
-  const averageRating = reviews.reduce((total, review) => total + review.rating, 0) / reviews.length
+  if (!room)
+    return (
+      <div style={{ color: "#D09500", textAlign: "center", marginTop: 100 }}>
+        Loading...
+      </div>
+    );
+
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((total, review) => total + review.rating, 0) /
+        reviews.length
+      : 0;
 
   return (
     <div className="room-detail-page">
@@ -601,363 +778,6 @@ function RoomDetail() {
           cursor: pointer;
         }
 
-        /* Room Details Tabs */
-        .room-details {
-          padding: 4rem 0;
-          background-color: #f8f5f0;
-        }
-
-        .details-tabs {
-          display: flex;
-          justify-content: center;
-          gap: 1rem;
-          margin-bottom: 2rem;
-          border-bottom: 1px solid #e2e8f0;
-          padding-bottom: 1rem;
-        }
-
-        .details-tabs button {
-          padding: 0.75rem 1.5rem;
-          background-color: transparent;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-weight: 500;
-          color: #666;
-          transition: all 0.3s;
-        }
-
-        .details-tabs button.tab-active {
-          background-color: #d09500;
-          color: white;
-        }
-
-        .details-content {
-          background-color: white;
-          padding: 2rem;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .description-content p {
-          color: #666;
-          line-height: 1.8;
-          margin-bottom: 1.5rem;
-        }
-
-        .room-features-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1rem;
-          margin-top: 2rem;
-        }
-
-        .feature-item {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .feature-icon {
-          color: #d09500;
-          font-size: 0.8rem;
-        }
-
-        /* Amenities Content */
-        .amenities-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 2rem;
-        }
-
-        .amenity-card {
-          background-color: #f8f5f0;
-          padding: 1.5rem;
-          border-radius: 8px;
-          text-align: center;
-          transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .amenity-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .amenity-icon {
-          font-size: 2rem;
-          color: #d09500;
-          margin-bottom: 1rem;
-        }
-
-        .amenity-card h3 {
-          font-size: 1rem;
-          color: #87723b;
-        }
-
-        /* Policies Content */
-        .policies-list {
-          list-style: none;
-          padding: 0;
-        }
-
-        .policies-list .policy-item {
-          padding: 1rem 0;
-          border-bottom: 1px solid #e2e8f0;
-          font-size: 1rem;
-        }
-
-        .policies-list .policy-item:last-child {
-          border-bottom: none;
-        }
-
-        /* Reviews Content */
-        .reviews-summary {
-          display: flex;
-          justify-content: center;
-          margin-bottom: 2rem;
-        }
-
-        .average-rating {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .rating-number {
-          font-size: 3rem;
-          font-weight: 700;
-          color: #d09500;
-        }
-
-        .rating-stars {
-          display: flex;
-          gap: 0.25rem;
-          font-size: 1.2rem;
-        }
-
-        .rating-count {
-          color: #666;
-          font-size: 0.9rem;
-        }
-
-        .reviews-list {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 2rem;
-        }
-
-        .review-card {
-          background-color: #f8f5f0;
-          padding: 1.5rem;
-          border-radius: 8px;
-        }
-
-        .review-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 1rem;
-        }
-
-        .reviewer-name {
-          font-weight: 600;
-          color: #87723b;
-        }
-
-        .review-date {
-          font-size: 0.875rem;
-          color: #666;
-        }
-
-        .review-rating {
-          margin-bottom: 1rem;
-          display: flex;
-          gap: 0.25rem;
-        }
-
-        .review-comment {
-          color: #666;
-          line-height: 1.7;
-        }
-
-        /* Similar Rooms */
-        .similar-rooms {
-          padding: 2rem 0;
-          background-color: white;
-          width: 95%;            
-          max-width: 1200px;     
-          margin: 0 auto;
-        }
-
-        .section-header {
-          text-align: center;
-          margin-bottom: 3rem;
-        }
-
-        .section-header h2 {
-          font-size: 2.25rem;
-          color: #87723b;
-          margin-bottom: 1rem;
-        }
-
-        .section-header p {
-          max-width: 700px;
-          margin: 0 auto;
-          color: #666;
-          font-size: 1.1rem;
-        }
-
-        .similar-rooms .container {
-          max-width: 600px;
-          margin: 0 auto;
-        }
-
-        .similar-rooms-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(300px, 1fr));
-          gap: 2rem;
-          justify-content: center;
-        }
-
-        .similar-room-card {
-          max-width: 300px;
-          margin: 0 auto;
-          background-color: white;
-          border-radius: 8px;
-          overflow: hidden;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-          transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .similar-room-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .similar-room-image {
-          position: relative;
-          height: 200px;
-          overflow: hidden;
-        }
-
-        .similar-room-image img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          transition: transform 0.5s;
-        }
-
-        .similar-room-card:hover .similar-room-image img {
-          transform: scale(1.05);
-        }
-
-        .similar-room-price {
-          position: absolute;
-          bottom: 1rem;
-          right: 1rem;
-          background-color: #d09500;
-          color: white;
-          padding: 0.5rem 1rem;
-          border-radius: 4px;
-          font-weight: 600;
-        }
-
-        .similar-room-details {
-          padding: 1.5rem;
-        }
-
-        .similar-room-details h3 {
-          font-size: 1.3rem;
-          color: #87723b;
-          margin-bottom: 0.75rem;
-        }
-
-        .similar-room-details p {
-          color: #666;
-          margin-bottom: 1.25rem;
-          font-size: 0.95rem;
-        }
-
-        .similar-room-details .btn {
-          display: inline-block;
-          padding: 0.75rem 1.5rem;
-          font-weight: 600;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          text-align: center;
-        }
-
-        .similar-room-details .btn-outline {
-          background-color: transparent;
-          color: #d09500;
-          border: 1px solid #d09500;
-        }
-
-        .similar-room-details .btn-outline:hover {
-          background-color: #d09500;
-          color: white;
-        }
-
-        /* Call to Action Section */
-        .cta-section {
-          background: linear-gradient(135deg, #87723b, #d09500);
-          color: white;
-          padding: 5rem 0;
-          text-align: center;
-        }
-
-        .cta-content h2 {
-          font-size: 2.5rem;
-          margin-bottom: 1.25rem;
-          color: white;
-        }
-
-        .cta-content p {
-          font-size: 1.25rem;
-          margin-bottom: 2.5rem;
-          opacity: 0.9;
-          max-width: 700px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-
-        .cta-buttons {
-          display: flex;
-          justify-content: center;
-          gap: 1.5rem;
-        }
-
-        .btn-primary {
-          background-color: white;
-          color: #d09500;
-          border: none;
-          padding: 1rem 2rem;
-          border-radius: 4px;
-          font-weight: 600;
-          transition: all 0.3s;
-        }
-
-        .btn-primary:hover {
-          background-color: rgba(255, 255, 255, 0.9);
-          transform: translateY(-3px);
-        }
-
-        .btn-secondary {
-          background-color: transparent;
-          color: white;
-          border: 2px solid white;
-          padding: 1rem 2rem;
-          border-radius: 4px;
-          font-weight: 600;
-          transition: all 0.3s;
-        }
-
-        .btn-secondary:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-          transform: translateY(-3px);
-        }
-
         /* Gallery Modal */
         .gallery-modal {
           position: fixed;
@@ -1090,10 +910,6 @@ function RoomDetail() {
             grid-template-columns: 1fr;
           }
 
-          .similar-rooms-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
           .room-features-grid {
             grid-template-columns: repeat(2, 1fr);
           }
@@ -1124,22 +940,8 @@ function RoomDetail() {
             grid-template-columns: 1fr;
           }
 
-          .amenities-grid {
+         .amenities-grid {
             grid-template-columns: repeat(2, 1fr);
-          }
-
-          .cta-buttons {
-            flex-direction: column;
-            max-width: 300px;
-            margin: 0 auto;
-          }
-
-          .details-tabs {
-            flex-wrap: wrap;
-          }
-
-          .details-tabs button {
-            flex: 1 0 40%;
           }
         }
 
@@ -1148,11 +950,7 @@ function RoomDetail() {
             grid-template-columns: 1fr;
           }
 
-          .amenities-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .similar-rooms-grid {
+         .amenities-grid {
             grid-template-columns: 1fr;
           }
 
@@ -1162,12 +960,8 @@ function RoomDetail() {
             height: 150px;
           }
 
-          .room-title-section h1 {
+         .room-title-section h1 {
             font-size: 2rem;
-          }
-
-          .details-tabs button {
-            flex: 1 0 100%;
           }
 
           .review-title {
@@ -1197,15 +991,25 @@ function RoomDetail() {
         <section className="room-gallery-hero">
           <div className="gallery-grid">
             <div className="gallery-main" onClick={() => openGallery(0)}>
-              <img src={room.images[0] || "/placeholder.svg"} alt={`${room.title} - Main View`} />
+              <img
+                src={room.images[0] || "/placeholder.svg"}
+                alt={`${room.title} - Main View`}
+              />
               <div className="gallery-overlay">
                 <span>View All Photos</span>
               </div>
             </div>
             <div className="gallery-secondary">
               {room.images.slice(1, 3).map((img, i) => (
-                <div key={i} className="gallery-item" onClick={() => openGallery(i + 1)}>
-                  <img src={img || "/placeholder.svg"} alt={`${room.title} - View ${i + 2}`} />
+                <div
+                  key={i}
+                  className="gallery-item"
+                  onClick={() => openGallery(i + 1)}
+                >
+                  <img
+                    src={img || "/placeholder.svg"}
+                    alt={`${room.title} - View ${i + 2}`}
+                  />
                 </div>
               ))}
             </div>
@@ -1240,7 +1044,10 @@ function RoomDetail() {
                     className={`modal-thumbnail ${currentImage === index ? "active" : ""}`}
                     onClick={() => selectImage(index)}
                   >
-                    <img src={image || "/placeholder.svg"} alt={`${room.title} - Thumbnail ${index + 1}`} />
+                    <img
+                      src={image || "/placeholder.svg"}
+                      alt={`${room.title} - Thumbnail ${index + 1}`}
+                    />
                   </div>
                 ))}
               </div>
@@ -1257,9 +1064,18 @@ function RoomDetail() {
                   <h1>{room.title}</h1>
                   <div className="room-rating">
                     {[...Array(5)].map((_, i) => (
-                      <FaStar key={i} className={i < Math.round(averageRating) ? "star-filled" : "star-empty"} />
+                      <FaStar
+                        key={i}
+                        className={
+                          i < Math.round(averageRating)
+                            ? "star-filled"
+                            : "star-empty"
+                        }
+                      />
                     ))}
-                    <span className="rating-count">({reviews.length} reviews)</span>
+                    <span className="rating-count">
+                      ({reviews.length} reviews)
+                    </span>
                   </div>
                   <p className="room-short-desc">{room.shortDescription}</p>
                 </div>
@@ -1316,10 +1132,10 @@ function RoomDetail() {
                         value={checkIn}
                         onChange={(e) => {
                           if (!isLoggedIn) {
-                            alert("Anda harus login terlebih dahulu.")
-                            return
+                            alert("Anda harus login terlebih dahulu.");
+                            return;
                           }
-                          setCheckIn(e.target.value)
+                          setCheckIn(e.target.value);
                         }}
                         required
                       />
@@ -1333,10 +1149,10 @@ function RoomDetail() {
                         value={checkOut}
                         onChange={(e) => {
                           if (!isLoggedIn) {
-                            alert("Anda harus login terlebih dahulu.")
-                            return
+                            alert("Anda harus login terlebih dahulu.");
+                            return;
                           }
-                          setCheckOut(e.target.value)
+                          setCheckOut(e.target.value);
                         }}
                         required
                         min={checkIn}
@@ -1349,11 +1165,16 @@ function RoomDetail() {
                       <FaUserFriends /> Guests
                     </label>
                     <div className="guest-selector">
-                      <div className="guest-display" onClick={toggleGuestDropdown}>
+                      <div
+                        className="guest-display"
+                        onClick={toggleGuestDropdown}
+                      >
                         <span>
                           {totalGuests} {totalGuests === 1 ? "Guest" : "Guests"}
                         </span>
-                        <FaChevronDown className={isGuestDropdownOpen ? "rotate" : ""} />
+                        <FaChevronDown
+                          className={isGuestDropdownOpen ? "rotate" : ""}
+                        />
                       </div>
                       {isGuestDropdownOpen && (
                         <div className="guest-dropdown">
@@ -1387,7 +1208,11 @@ function RoomDetail() {
                               </button>
                             </div>
                           </div>
-                          <button type="button" className="apply-btn" onClick={() => setIsGuestDropdownOpen(false)}>
+                          <button
+                            type="button"
+                            className="apply-btn"
+                            onClick={() => setIsGuestDropdownOpen(false)}
+                          >
                             Apply
                           </button>
                         </div>
@@ -1401,16 +1226,22 @@ function RoomDetail() {
                       <span>
                         {formatRupiah(room.price)} x{" "}
                         {checkIn && checkOut
-                          ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))
+                          ? Math.ceil(
+                              (new Date(checkOut) - new Date(checkIn)) /
+                                (1000 * 60 * 60 * 24),
+                            )
                           : 0}
                         / night
                       </span>
                       <span>
                         {formatRupiah(
                           room.price *
-                          (checkIn && checkOut
-                            ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))
-                            : 0),
+                            (checkIn && checkOut
+                              ? Math.ceil(
+                                  (new Date(checkOut) - new Date(checkIn)) /
+                                    (1000 * 60 * 60 * 24),
+                                )
+                              : 0),
                         )}
                       </span>
                     </div>
@@ -1428,11 +1259,13 @@ function RoomDetail() {
                   <div className="booking-policies">
                     <div className="policy-item">
                       <FaCheck className="policy-icon" />
-                      <span>Pembatalan gratis sebelum 48 jam dari check-in</span>
+                      <span>
+                        Free cancellation up to 48 hours before check-in
+                      </span>
                     </div>
                     <div className="policy-item">
                       <FaCreditCard className="policy-icon" />
-                      <span>Tidak perlu pembayaran sekarang</span>
+                      <span>No payment required now</span>
                     </div>
                   </div>
                 </form>
@@ -1442,130 +1275,182 @@ function RoomDetail() {
         </section>
 
         {/* Room Details Tabs */}
-        <section className="room-details">
+        <section
+          className="room-details"
+          style={{ padding: "4rem 0", backgroundColor: "#f8f5f0" }}
+        >
           <div className="container">
-            <div className="details-tabs">
-              <button
-                className={activeTab === "description" ? "tab-active" : ""}
-                onClick={() => setActiveTab("description")}
-              >
-                Description
-              </button>
-              <button
-                className={activeTab === "amenities" ? "tab-active" : ""}
-                onClick={() => setActiveTab("amenities")}
-              >
-                Amenities
-              </button>
-              <button className={activeTab === "policies" ? "tab-active" : ""} onClick={() => setActiveTab("policies")}>
-                Policies
-              </button>
-              <button className={activeTab === "reviews" ? "tab-active" : ""} onClick={() => setActiveTab("reviews")}>
-                Reviews
-              </button>
+            <div style={styles.detailsTabs}>
+              {["description", "amenities", "policies", "reviews"].map(
+                (tab) => (
+                  <button
+                    key={tab}
+                    style={
+                      activeTab === tab
+                        ? { ...styles.tabButton, ...styles.tabButtonActive }
+                        : styles.tabButton
+                    }
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ),
+              )}
             </div>
 
-            <div className="details-content">
-              {activeTab === "description" && (
-                <div className="description-content">
-                  <p>{room.fullDescription}</p>
-
-                  {room.features?.length > 0 && (
-                    <>
-                      <h4 style={{ marginTop: "1rem", marginBottom: "0.5rem", fontSize: "16px" }}>Features:</h4>
-                      <div className="room-features-grid">
-                        {room.features.map((feature, index) => (
-                          <div key={index} className="feature-item">
-                            <FaCheck className="feature-icon" />
-                            <span>{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "amenities" && (
-                <div className="amenities-content">
-                  <div className="amenities-grid">
-                    {room.amenities?.map((amenity, index) => (
-                      <div key={index} className="amenity-card">
-                        <div className="amenity-icon">{amenity.icon}</div>
-                        <h3>{amenity.name}</h3>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "policies" && (
-                <div className="policies-content">
-                  {room.policies?.length > 0 && (
-                    <>
-                      <h4 style={{ marginBottom: "0.5rem", fontSize: "16px" }}>Policies:</h4>
-                      <ul className="policies-list">
-                        {room.policies.map((policy, index) => (
-                          <li key={index} className="policy-item">
-                            <FaCheck className="policy-icon" />
-                            <span>{policy}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "reviews" && (
-                <div className="reviews-content">
-                  <div className="reviews-summary">
-                    <div className="average-rating">
-                      <div className="rating-number">
-                        {reviews.length > 0 ? (reviews.reduce((total, review) => total + review.rating, 0) / reviews.length).toFixed(1) : '0.0'}
-                      </div>
-                      <div className="rating-stars">
-                        {[...Array(5)].map((_, i) => (
-                          <FaStar key={i} className={i < Math.round(averageRating) ? "star-filled" : "star-empty"} />
-                        ))}
-                      </div>
-                      <div className="rating-count">{reviews.length} reviews</div>
-                    </div>
-                  </div>
-
-                  <div className="reviews-list">
-                    {reviews.map((review) => (
-                      <div key={review.id} className="review-card">
-                        <div className="review-header">
-                          <div className="reviewer-name">
-                            {review.user?.fullName || review.fullname}
-                          </div>
-                          <div className="review-date">
-                            {new Date(review.createdAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </div>
-                        </div>
-                        <div className="review-rating">
-                          {[...Array(5)].map((_, i) => (
-                            <FaStar key={i} className={i < review.rating ? "star-filled" : "star-empty"} />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                style={styles.detailsContent}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                {activeTab === "description" && (
+                  <div>
+                    <p style={styles.descriptionParagraph}>
+                      {room.fullDescription}
+                    </p>
+                    {room.features?.length > 0 && (
+                      <>
+                        <h4
+                          style={{
+                            marginTop: "1rem",
+                            marginBottom: "0.5rem",
+                            fontSize: "16px",
+                          }}
+                        >
+                          Features:
+                        </h4>
+                        <div style={styles.roomFeaturesGrid}>
+                          {room.features.map((feature, index) => (
+                            <div key={index} style={styles.featureItem}>
+                              <FaCheck style={styles.featureIcon} />
+                              <span>{feature}</span>
+                            </div>
                           ))}
                         </div>
-                        <h4 className="review-title">{review.title}</h4>
-                        <div className="review-comment">{review.comment}</div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "amenities" && (
+                  <div style={styles.amenitiesGrid}>
+                    {room.amenities?.map((amenity, index) => (
+                      <div
+                        key={index}
+                        style={styles.amenityCard}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.transform = "translateY(-5px)";
+                          e.currentTarget.style.boxShadow =
+                            "0 10px 15px rgba(0, 0, 0, 0.1)";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.transform = "none";
+                          e.currentTarget.style.boxShadow = "none";
+                        }}
+                      >
+                        <div style={styles.amenityIcon}>{amenity.icon}</div>
+                        <h3 style={styles.amenityName}>{amenity.name}</h3>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+
+                {activeTab === "policies" && (
+                  <div>
+                    {room.policies?.length > 0 && (
+                      <>
+                        <h4
+                          style={{ marginBottom: "0.5rem", fontSize: "16px" }}
+                        >
+                          Policies:
+                        </h4>
+                        <ul style={styles.policiesList}>
+                          {room.policies.map((policy, index) => (
+                            <li key={index} style={styles.policyListItem}>
+                              <FaCheck style={{ color: "#D09500" }} />
+                              <span>{policy}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "reviews" && (
+                  <div>
+                    <div style={styles.reviewsSummary}>
+                      <div style={styles.averageRatingBlock}>
+                        <div style={styles.ratingNumber}>
+                          {averageRating.toFixed(1)}
+                        </div>
+                        <div style={styles.ratingStars}>
+                          {[...Array(5)].map((_, i) => (
+                            <FaStar
+                              key={i}
+                              style={{
+                                color:
+                                  i < Math.round(averageRating)
+                                    ? "#D09500"
+                                    : "#ccc",
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <div style={styles.ratingCountText}>
+                          {reviews.length} reviews
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={styles.reviewsList}>
+                      {reviews.map((review) => (
+                        <div key={review.id} style={styles.reviewCard}>
+                          <div style={styles.reviewHeader}>
+                            <div style={styles.reviewerName}>
+                              {review.user?.fullName || review.fullname}
+                            </div>
+                            <div style={styles.reviewDate}>
+                              {new Date(review.createdAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                },
+                              )}
+                            </div>
+                          </div>
+                          <div style={styles.reviewRatingRow}>
+                            {[...Array(5)].map((_, i) => (
+                              <FaStar
+                                key={i}
+                                style={{
+                                  color: i < review.rating ? "#D09500" : "#ccc",
+                                }}
+                              />
+                            ))}
+                          </div>
+                          <h4 style={styles.reviewTitle}>{review.title}</h4>
+                          <div style={styles.reviewComment}>
+                            {review.comment}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </section>
       </div>
     </div>
-  )
+  );
 }
 
-export default RoomDetail
+export default RoomDetail;

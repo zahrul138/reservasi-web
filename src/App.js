@@ -1,7 +1,14 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AnimatedPage from "./components/AnimatedPage";
 
 import Navbar from "./pages/Navbar";
 
@@ -30,12 +37,247 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Profile from "./pages/Profile";
 
-const LayoutWithNavbar = ({ children }) => (
-  <>
-    <Navbar />
-    <div className="container mt-3">{children}</div>
-  </>
-);
+const NAVBAR_PATHS = [
+  "/",
+  "/home",
+  "/about",
+  "/contact",
+  "/profile",
+  "/searchbooking",
+  "/historybooking",
+];
+
+function AppRoutes() {
+  const location = useLocation();
+
+  const showNavbar =
+    NAVBAR_PATHS.includes(location.pathname) ||
+    location.pathname.startsWith("/room/");
+
+  return (
+    <>
+      {showNavbar && <Navbar />}
+
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route
+            path="/signin"
+            element={
+              <AnimatedPage>
+                <SignIn />
+              </AnimatedPage>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <AnimatedPage>
+                <SignUp />
+              </AnimatedPage>
+            }
+          />
+          <Route
+            path="/privacyPolicy"
+            element={
+              <AnimatedPage>
+                <PrivacyPolicy />
+              </AnimatedPage>
+            }
+          />
+          <Route
+            path="/termsOfService"
+            element={
+              <AnimatedPage>
+                <TermsOfService />
+              </AnimatedPage>
+            }
+          />
+          <Route
+            path="/bookingformone"
+            element={
+              <AnimatedPage>
+                <BookingFormOne />
+              </AnimatedPage>
+            }
+          />
+          <Route
+            path="/bookingformtwo"
+            element={
+              <AnimatedPage>
+                <BookingFormTwo />
+              </AnimatedPage>
+            }
+          />
+          <Route
+            path="/bookingformthree"
+            element={
+              <AnimatedPage>
+                <BookingFormThree />
+              </AnimatedPage>
+            }
+          />
+          <Route
+            path="/invoice"
+            element={
+              <AnimatedPage>
+                <InvoicePage />
+              </AnimatedPage>
+            }
+          />
+
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/roomManage"
+            element={
+              <ProtectedRoute>
+                <RoomManage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/guestList"
+            element={
+              <ProtectedRoute>
+                <GuestList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/checkIn"
+            element={
+              <ProtectedRoute>
+                <CheckInAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/checkOut"
+            element={
+              <ProtectedRoute>
+                <CheckOutAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/history"
+            element={
+              <ProtectedRoute>
+                <HistoryAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/feedback"
+            element={
+              <ProtectedRoute>
+                <FeedbackAdmin />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/home"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <Homepage />
+                </AnimatedPage>
+              </div>
+            }
+          />
+          <Route
+            path="/room/:id"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <RoomDetail />
+                </AnimatedPage>
+              </div>
+            }
+          />
+          <Route
+            path="/searchbooking"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <SearchBooking />
+                </AnimatedPage>
+              </div>
+            }
+          />
+          <Route
+            path="/historybooking"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <HistoryBooking />
+                </AnimatedPage>
+              </div>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <AboutPage />
+                </AnimatedPage>
+              </div>
+            }
+          />
+          <Route
+            path="/contact"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <ContactPage />
+                </AnimatedPage>
+              </div>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <Profile />
+                </AnimatedPage>
+              </div>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <Homepage />
+                </AnimatedPage>
+              </div>
+            }
+          />
+
+          <Route
+            path="*"
+            element={
+              <div className="container mt-3">
+                <AnimatedPage>
+                  <h2>Page not found</h2>
+                </AnimatedPage>
+              </div>
+            }
+          />
+        </Routes>
+      </AnimatePresence>
+    </>
+  );
+}
 
 function App() {
   return (
@@ -45,147 +287,7 @@ function App() {
         autoClose={3000}
         hideProgressBar={false}
       />
-
-      <Routes>
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/privacyPolicy" element={<PrivacyPolicy />}></Route>
-        <Route path="/termsOfService" element={<TermsOfService />}></Route>
-        <Route path="/bookingformone" element={<BookingFormOne />} />
-        <Route path="/bookingformtwo" element={<BookingFormTwo />} />
-        <Route path="/bookingformthree" element={<BookingFormThree />} />
-        <Route path="/invoice" element={<InvoicePage />} />
-
-        <Route
-          path="/admin/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardAdmin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/roomManage"
-          element={
-            <ProtectedRoute>
-              <RoomManage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/guestList"
-          element={
-            <ProtectedRoute>
-              <GuestList />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/checkIn"
-          element={
-            <ProtectedRoute>
-              <CheckInAdmin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/checkOut"
-          element={
-            <ProtectedRoute>
-              <CheckOutAdmin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <LayoutWithNavbar>
-              <Profile />
-            </LayoutWithNavbar>
-          }
-        />
-        <Route
-          path="/admin/history"
-          element={
-            <ProtectedRoute>
-              <HistoryAdmin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/feedback"
-          element={
-            <ProtectedRoute>
-              <FeedbackAdmin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/home"
-          element={
-            <LayoutWithNavbar>
-              <Homepage />
-            </LayoutWithNavbar>
-          }
-        />
-        <Route
-          path="/room/:id"
-          element={
-            <LayoutWithNavbar>
-              <RoomDetail />
-            </LayoutWithNavbar>
-          }
-        />
-        <Route
-          path="/searchbooking"
-          element={
-            <LayoutWithNavbar>
-              <SearchBooking />
-            </LayoutWithNavbar>
-          }
-        />
-        <Route
-          path="/historybooking"
-          element={
-            <LayoutWithNavbar>
-              <HistoryBooking />
-            </LayoutWithNavbar>
-          }
-        />
-        <Route
-          path="/about"
-          element={
-            <LayoutWithNavbar>
-              <AboutPage />
-            </LayoutWithNavbar>
-          }
-        />
-        <Route
-          path="/contact"
-          element={
-            <LayoutWithNavbar>
-              <ContactPage />
-            </LayoutWithNavbar>
-          }
-        />
-        <Route
-          path="/"
-          element={
-            <LayoutWithNavbar>
-              <Homepage />
-            </LayoutWithNavbar>
-          }
-        />
-
-        <Route
-          path="*"
-          element={
-            <LayoutWithNavbar>
-              <h2>Halaman tidak ditemukan</h2>
-            </LayoutWithNavbar>
-          }
-        />
-      </Routes>
+      <AppRoutes />
     </Router>
   );
 }
