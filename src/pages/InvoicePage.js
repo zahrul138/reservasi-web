@@ -1,12 +1,13 @@
-"use client"
-
 import { useState, useEffect } from "react"
-import { useLocation } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import Logo from "../assets/images/LogoRG3.png"
+import { API_BASE_URL } from "../services/apiConfig"
 
 const InvoicePage = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const [bookingData, setBookingData] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [pdfReady, setPdfReady] = useState(false)
   const [currentDate] = useState(new Date())
   const [invoiceNumber] = useState(() => generateInvoiceNumber())
@@ -27,35 +28,21 @@ const InvoicePage = () => {
     const fetchBookingData = async () => {
       const id = location.state?.bookingId
       if (!id) {
-        // Mock data for demonstration
-        const mockData = {
-          fullName: "FaznYajid",
-          fullname: "FaznYajid",
-          email: "fazn123@gmail.com",
-          phone: "081293077025",
-          phoneNumber: "081293077025",
-          address:
-            "Jln. Abdulfattah, Perumahan Taman Valencia Blok C No 13, RT 01, RW 25, Kelurahan Belian, Kecamatan Batam Kota, Kota Batam, Batam Centre",
-          country: "Indonesia",
-          checkinDate: "2025-07-06T00:00:00",
-          checkoutDate: "2025-07-08T00:00:00",
-          roomType: "Superior Room",
-          totalPrice: 300000,
-          paymentMethod: "Online Payment",
-          paymentStatus: "Completed",
-          bookingId: "1333",
-          specialRequests: null,
-        }
-        setBookingData(mockData)
+        setNotFound(true)
         return
       }
 
       try {
-        const res = await fetch(`https://localhost:7298/api/Booking/${id}`)
+        const res = await fetch(`${API_BASE_URL}/api/Booking/${id}`)
+        if (!res.ok) {
+          setNotFound(true)
+          return
+        }
         const data = await res.json()
         setBookingData(data)
       } catch (err) {
         console.error("Failed to fetch booking:", err)
+        setNotFound(true)
       }
     }
     fetchBookingData()
@@ -111,6 +98,42 @@ const InvoicePage = () => {
     }
     return `Paid on ${currentDate.toLocaleDateString("en-GB")}`;
   };
+
+  if (notFound) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          gap: "1rem",
+          padding: "2rem",
+        }}
+      >
+        <h2>Invoice not found</h2>
+        <p style={{ color: "#666" }}>
+          We couldn't find the invoice you're looking for.
+        </p>
+        <button
+          onClick={() => navigate("/home")}
+          style={{
+            padding: "0.75rem 1.5rem",
+            backgroundColor: "#d09500",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          Back to Home
+        </button>
+      </div>
+    )
+  }
 
   if (!bookingData) return <p style={{ textAlign: "center" }}>Loading invoice...</p>
 
@@ -215,7 +238,7 @@ const InvoicePage = () => {
               >
                 <img
                   src={Logo || "/placeholder.svg"}
-                  alt="Golden Stay Hotel"
+                  alt="Royal Gold Hotel"
                   style={{
                     width: "60px",
                     height: "60px",
@@ -232,7 +255,7 @@ const InvoicePage = () => {
                       margin: "0 0 0.25rem 0",
                     }}
                   >
-                    Golden Stay Hotel
+                    Royal Gold Hotel
                   </h1>
                   <p
                     style={{
@@ -255,10 +278,9 @@ const InvoicePage = () => {
                   lineHeight: "1.6",
                 }}
               >
-                <div style={{ fontWeight: "600", color: "#1f2937" }}>Golden Stay</div>
-                <div>123 Luxury Avenue</div>
-                <div>Jakarta, Indonesia</div>
-                <div>12345</div>
+                <div style={{ fontWeight: "600", color: "#1f2937" }}>Royal Gold</div>
+                <div>Batam Center</div>
+                <div>Batam, Kepulauan Riau</div>
                 <div>Indonesia</div>
               </div>
             </div>
@@ -610,9 +632,9 @@ const InvoicePage = () => {
                 }}
               >
                 <div style={{ marginBottom: "0.5rem", fontWeight: "600" }}>
-                  Thank you for choosing Golden Stay Hotel!
+                  Thank you for choosing Royal Gold Hotel. We look forward to welcoming you!
                 </div>
-                <div>For any inquiries, please contact us at +62 21 1234 5678 or email info@goldenstay.com</div>
+                <div>For any inquiries, please contact us at +62 21 1234 5678 or email info@royalgold.com</div>
               </div>
             </div>
           </div>

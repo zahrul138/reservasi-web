@@ -27,9 +27,7 @@ import Homepage from "./pages/HomePage";
 import RoomDetail from "./pages/RoomDetail";
 import SearchBooking from "./pages/SearchBooking";
 import InvoicePage from "./pages/InvoicePage";
-import BookingFormOne from "./pages/BookingFormOne";
-import BookingFormTwo from "./pages/BookingFormTwo";
-import BookingFormThree from "./pages/BookingFormThree";
+import BookingFlow from "./pages/BookingFlow";
 import HistoryBooking from "./pages/HistoryBooking";
 import AboutPage from "./pages/AboutPages";
 import ContactPage from "./pages/ContactPage";
@@ -93,26 +91,10 @@ function AppRoutes() {
             }
           />
           <Route
-            path="/bookingformone"
+            path="/booking"
             element={
               <AnimatedPage>
-                <BookingFormOne />
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/bookingformtwo"
-            element={
-              <AnimatedPage>
-                <BookingFormTwo />
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/bookingformthree"
-            element={
-              <AnimatedPage>
-                <BookingFormThree />
+                <BookingFlow />
               </AnimatedPage>
             }
           />

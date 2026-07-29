@@ -312,10 +312,9 @@ function RoomDetail() {
       childGuests: children,
       totalPrice: totalPrice,
     };
-    navigate("/bookingformone", { state: { bookingDetails } });
+    navigate("/booking", { state: { bookingDetails } });
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -331,7 +330,6 @@ function RoomDetail() {
     };
   }, [guestDropdownRef]);
 
-  // Gallery Navigation
   const nextImage = () =>
     setCurrentImage((prev) =>
       prev === (room?.images?.length || 1) - 1 ? 0 : prev + 1,
@@ -987,7 +985,6 @@ function RoomDetail() {
         }
       `}</style>
       <div className="room-detail-page">
-        {/* Gallery Hero */}
         <section className="room-gallery-hero">
           <div className="gallery-grid">
             <div className="gallery-main" onClick={() => openGallery(0)}>
@@ -1016,7 +1013,6 @@ function RoomDetail() {
           </div>
         </section>
 
-        {/* Fullscreen Gallery */}
         {galleryOpen && (
           <div className="gallery-modal" onClick={closeGallery}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -1055,7 +1051,6 @@ function RoomDetail() {
           </div>
         )}
 
-        {/* Room Overview */}
         <section className="room-overview">
           <div className="container">
             <div className="overview-grid">
@@ -1112,7 +1107,6 @@ function RoomDetail() {
                 </div>
               </div>
 
-              {/* Booking Card */}
               <div className="booking-card">
                 <div className="price-container">
                   <div className="current-price">
@@ -1220,7 +1214,6 @@ function RoomDetail() {
                     </div>
                   </div>
 
-                  {/* Booking Summary */}
                   <div className="booking-summary">
                     <div className="summary-row">
                       <span>
@@ -1274,7 +1267,6 @@ function RoomDetail() {
           </div>
         </section>
 
-        {/* Room Details Tabs */}
         <section
           className="room-details"
           style={{ padding: "4rem 0", backgroundColor: "#f8f5f0" }}
