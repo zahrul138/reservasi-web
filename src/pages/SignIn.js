@@ -160,12 +160,12 @@ function SignIn() {
 
       if (response.ok) {
         const user = result.user;
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("fullname", user.fullname || "");
-        localStorage.setItem("id", user.id || "");
-        localStorage.setItem("avatar", user.avatar || "");
-        localStorage.setItem("email", user.email || "");
-        localStorage.setItem("role", user.role || "");
+        sessionStorage.setItem("user", JSON.stringify(user));
+        sessionStorage.setItem("fullname", user.fullname || "");
+        sessionStorage.setItem("id", user.id || "");
+        sessionStorage.setItem("avatar", user.avatar || "");
+        sessionStorage.setItem("email", user.email || "");
+        sessionStorage.setItem("role", user.role || "");
 
         window.dispatchEvent(new Event("storage"));
 

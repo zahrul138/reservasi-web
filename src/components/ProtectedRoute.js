@@ -2,7 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 
 const ProtectedRoute = ({ children }) => {
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(sessionStorage.getItem("user"));
 
   if (!user || user.role !== "admin") {
     // Redirect ke signin DAN kirim info asal route

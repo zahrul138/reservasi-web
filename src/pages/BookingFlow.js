@@ -313,8 +313,8 @@ function BookingFlow() {
   }, [bookingDetails, navigate]);
 
   useEffect(() => {
-    const storedName = localStorage.getItem("fullname");
-    const storedEmail = localStorage.getItem("email");
+    const storedName = sessionStorage.getItem("fullname");
+    const storedEmail = sessionStorage.getItem("email");
     if (storedName) setFullName(storedName);
     if (storedEmail) setEmail(storedEmail);
   }, []);

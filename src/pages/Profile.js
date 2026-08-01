@@ -214,7 +214,7 @@ function Profile() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const storedEmail = localStorage.getItem("email");
+    const storedEmail = sessionStorage.getItem("email");
 
     if (!storedEmail) {
       navigate("/signin");
@@ -281,7 +281,7 @@ function Profile() {
       );
 
       if (response.ok) {
-        localStorage.setItem("fullname", fullname);
+        sessionStorage.setItem("fullname", fullname);
         window.dispatchEvent(new Event("storage"));
         setOriginalFullname(fullname);
         setNewPassword("");

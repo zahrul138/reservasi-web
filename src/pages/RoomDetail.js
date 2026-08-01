@@ -233,7 +233,7 @@ function RoomDetail() {
           reviews: [],
         });
       });
-    const user = localStorage.getItem("user");
+    const user = sessionStorage.getItem("user");
     if (user) setIsLoggedIn(true);
   }, [id]);
 
@@ -285,7 +285,7 @@ function RoomDetail() {
 
   const handleBookNow = (e) => {
     e.preventDefault();
-    const storedUser = localStorage.getItem("user");
+    const storedUser = sessionStorage.getItem("user");
     if (!storedUser) {
       alert("You must be logged in to make a booking.");
       return;

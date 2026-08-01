@@ -2116,7 +2116,7 @@ function Homepage() {
               Book Now
             </button>
 
-            {!localStorage.getItem("user") && (
+            {!sessionStorage.getItem("user") && (
               <Link
                 to="/signup"
                 style={styles.secondaryButton}

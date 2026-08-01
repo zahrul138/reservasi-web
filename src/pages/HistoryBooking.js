@@ -308,7 +308,7 @@ function ReviewForm({
     setIsSubmitting(true);
 
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
+      const user = JSON.parse(sessionStorage.getItem("user"));
       if (!user) throw new Error("User not logged in");
 
       const reviewData = {
@@ -478,9 +478,9 @@ const HistoryBooking = () => {
   const [alreadyReviewed, setAlreadyReviewed] = useState({});
   const navigate = useNavigate();
 
-  // Fetch user data from localStorage
+  // Fetch user data from sessionStorage
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
+    const storedUser = JSON.parse(sessionStorage.getItem("user"));
     if (storedUser && storedUser.id) {
       setUserId(storedUser.id);
     } else {

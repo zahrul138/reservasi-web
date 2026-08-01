@@ -5,16 +5,16 @@ import { Star, Check, X } from "lucide-react"; // Assuming lucide-react is insta
 import SidebarAdmin from "../components/SidebarAdmin"; // Assuming SidebarAdmin.js exists at this path
 import { Navigate } from "react-router-dom";
 
-// --- Inlined Review Storage Logic (simulating a backend with localStorage) ---
+// --- Inlined Review Storage Logic (simulating a backend with sessionStorage) ---
 const REVIEWS_STORAGE_KEY = "admin_pending_reviews";
 
 function getReviews() {
   if (typeof window === "undefined") return []; // Ensure this runs only in browser
   try {
-    const storedReviews = localStorage.getItem(REVIEWS_STORAGE_KEY);
+    const storedReviews = sessionStorage.getItem(REVIEWS_STORAGE_KEY);
     return storedReviews ? JSON.parse(storedReviews) : [];
   } catch (error) {
-    console.error("Failed to load reviews from localStorage:", error);
+    console.error("Failed to load reviews from sessionStorage:", error);
     return [];
   }
 }
@@ -22,9 +22,9 @@ function getReviews() {
 function saveReviews(reviews) {
   if (typeof window === "undefined") return; // Ensure this runs only in browser
   try {
-    localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
+    sessionStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
   } catch (error) {
-    console.error("Failed to save reviews to localStorage:", error);
+    console.error("Failed to save reviews to sessionStorage:", error);
   }
 }
 
@@ -87,7 +87,7 @@ const FeedbackAdmin = () => {
 
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
-  // Function to refresh reviews from localStorage
+  // Function to refresh reviews from sessionStorage
   const refreshReviews = () => {
     const loadedReviews = getReviews();
     setReviews(loadedReviews);
@@ -206,7 +206,7 @@ const FeedbackAdmin = () => {
     return review.status === filterStatus;
   });
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(sessionStorage.getItem("user"));
   if (!user || user.role !== "admin") {
     return <Navigate to="/signin" replace />;
   }

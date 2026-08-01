@@ -67,12 +67,12 @@ const Navbar = () => {
   }, [lastScrollY]);
 
   useEffect(() => {
-    const fullname = localStorage.getItem("fullname");
+    const fullname = sessionStorage.getItem("fullname");
     setUserFullname(fullname || "");
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear();
+    sessionStorage.clear();
     setUserFullname("");
     navigate("/signin");
   };
@@ -207,7 +207,7 @@ const Navbar = () => {
                                   {userFullname}
                                 </Typography>
                                 <Typography sx={{ fontSize: "0.8rem", color: "#888" }}>
-                                  {localStorage.getItem("role") || "Guest"}
+                                  {sessionStorage.getItem("role") || "Guest"}
                                 </Typography>
                               </Box>
                             </Box>
@@ -232,7 +232,7 @@ const Navbar = () => {
                               <Typography>Profile</Typography>
                             </MenuItem>
 
-                            {localStorage.getItem("role") === "Admin" && (
+                            {sessionStorage.getItem("role") === "Admin" && (
                               <MenuItem
                                 onClick={() => {
                                   handleMenuClose();

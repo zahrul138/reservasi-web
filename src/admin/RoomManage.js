@@ -434,7 +434,7 @@ function RoomManage() {
       return "Rp " + value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
-    const user = JSON.parse(localStorage.getItem("user"));
+    const user = JSON.parse(sessionStorage.getItem("user"));
     if (!user || user.role !== "admin") {
       return <Navigate to="/signin" replace />;
     }
