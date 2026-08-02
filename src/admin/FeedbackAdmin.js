@@ -1,62 +1,8 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import { Star, Check, X } from "lucide-react"; // Assuming lucide-react is installed
-import SidebarAdmin from "../components/SidebarAdmin"; // Assuming SidebarAdmin.js exists at this path
-import { Navigate } from "react-router-dom";
+import { Star, Check, X } from "lucide-react";
+import SidebarAdmin from "../components/SidebarAdmin";
+import { API_BASE_URL } from "../services/apiConfig";
 
-// --- Inlined Review Storage Logic (simulating a backend with sessionStorage) ---
-const REVIEWS_STORAGE_KEY = "admin_pending_reviews";
-
-function getReviews() {
-  if (typeof window === "undefined") return []; // Ensure this runs only in browser
-  try {
-    const storedReviews = sessionStorage.getItem(REVIEWS_STORAGE_KEY);
-    return storedReviews ? JSON.parse(storedReviews) : [];
-  } catch (error) {
-    console.error("Failed to load reviews from sessionStorage:", error);
-    return [];
-  }
-}
-
-function saveReviews(reviews) {
-  if (typeof window === "undefined") return; // Ensure this runs only in browser
-  try {
-    sessionStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
-  } catch (error) {
-    console.error("Failed to save reviews to sessionStorage:", error);
-  }
-}
-
-function addReview(newReview) {
-  const reviews = getReviews();
-  const reviewWithId = {
-    id: Date.now().toString(), // Simple unique ID
-    status: "pending", // Default status
-    createdAt: new Date().toISOString(),
-    ...newReview,
-  };
-  reviews.push(reviewWithId);
-  saveReviews(reviews);
-  return reviewWithId;
-}
-
-function updateReviewStatus(reviewId, newStatus) {
-  const reviews = getReviews();
-  const reviewIndex = reviews.findIndex((r) => r.id === reviewId);
-  if (reviewIndex > -1) {
-    reviews[reviewIndex] = {
-      ...reviews[reviewIndex],
-      status: newStatus,
-      moderatedAt: new Date().toISOString(),
-    };
-    saveReviews(reviews);
-    return reviews[reviewIndex];
-  }
-  return null;
-}
-
-// --- Helper Functions ---
 const formatDate = (dateString) => {
   const date = new Date(dateString);
   if (isNaN(date)) return "Invalid Date";
@@ -76,71 +22,16 @@ const formatDate = (dateString) => {
   return `${day} at ${time}`;
 };
 
-// --- FeedbackAdmin Component ---
 const FeedbackAdmin = () => {
   const [reviews, setReviews] = useState([]);
   const [filterStatus, setFilterStatus] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [hoveredItem, setHoveredItem] = useState(null);
-  const [selectedReview, setSelectedReview] = useState(null); // For detail modal
-
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
-
-  // Function to refresh reviews from sessionStorage
-  const refreshReviews = () => {
-    const loadedReviews = getReviews();
-    setReviews(loadedReviews);
-    setLoading(false);
-  };
-
-  // Fungsi untuk mengambil semua review pending
-  const fetchPendingReviews = async () => {
-    try {
-      const response = await fetch(
-        "https://localhost:7298/api/Review?status=pending"
-      );
-      if (!response.ok) throw new Error("Failed to fetch reviews");
-      const data = await response.json();
-      setReviews(data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching reviews:", error);
-      setLoading(false);
-      return [];
-    }
-  };
-
-  // Fungsi untuk update status review
-  const updateReviewStatus = async (reviewId, status, moderatedById) => {
-    try {
-      const response = await fetch(
-        `https://localhost:7298/api/Review/${reviewId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            status,
-            moderatedById,
-          }),
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to update review status");
-      return true;
-    } catch (error) {
-      console.error("Error updating review status:", error);
-      return false;
-    }
-  };
+  const [selectedReview, setSelectedReview] = useState(null);
 
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const response = await fetch("https://localhost:7298/api/Review");
+        const response = await fetch(`${API_BASE_URL}/api/Review`);
         if (!response.ok) throw new Error("Failed to fetch reviews");
         const data = await response.json();
         setReviews(data);
@@ -157,16 +48,16 @@ const FeedbackAdmin = () => {
   const handleStatusChange = async (reviewId, newStatus) => {
     try {
       const response = await fetch(
-        `https://localhost:7298/api/Review/${reviewId}/status`,
+        `${API_BASE_URL}/api/Review/${reviewId}/status`,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            status: newStatus, // Just send the new status
+            status: newStatus,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -174,7 +65,6 @@ const FeedbackAdmin = () => {
         throw new Error(errorText || "Failed to update review status");
       }
 
-      // Update UI immediately
       setReviews((prevReviews) =>
         prevReviews.map((review) =>
           review.id === reviewId
@@ -183,11 +73,10 @@ const FeedbackAdmin = () => {
                 status: newStatus,
                 moderatedAt: new Date().toISOString(),
               }
-            : review
-        )
+            : review,
+        ),
       );
 
-      // Close modal if open
       if (selectedReview?.id === reviewId) {
         setSelectedReview(null);
       }
@@ -206,11 +95,6 @@ const FeedbackAdmin = () => {
     return review.status === filterStatus;
   });
 
-  const user = JSON.parse(sessionStorage.getItem("user"));
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/signin" replace />;
-  }
-
   const style = {
     container: {
       display: "flex",
@@ -221,6 +105,9 @@ const FeedbackAdmin = () => {
       flex: 1,
       padding: "30px",
       backgroundColor: "#f5f2db",
+      marginLeft: "var(--admin-sidebar-width, 232px)",
+      transition: "margin-left 0.25s ease",
+      minHeight: "100vh",
     },
     title: {
       fontSize: "28px",
@@ -382,12 +269,7 @@ const FeedbackAdmin = () => {
 
   return (
     <div style={style.container}>
-      <SidebarAdmin
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        hoveredItem={hoveredItem}
-        setHoveredItem={setHoveredItem}
-      />
+      <SidebarAdmin />
       <main style={style.main}>
         <h1 style={style.title}>Guest Feedback Management</h1>
 
@@ -558,7 +440,6 @@ const FeedbackAdmin = () => {
           </table>
         </div>
 
-        {/* Detail Modal */}
         {selectedReview && (
           <div style={style.modalOverlay}>
             <div style={style.modal}>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import axios from "axios";
-import { Navigate } from "react-router-dom";
+import { API_BASE_URL } from "../services/apiConfig";
 
 import SidebarAdmin from "../components/SidebarAdmin";
 
@@ -16,6 +16,9 @@ const style = {
     flex: 1,
     padding: "30px",
     backgroundColor: "#f5f2db",
+    marginLeft: "var(--admin-sidebar-width, 232px)",
+    transition: "margin-left 0.25s ease",
+    minHeight: "100vh",
   },
   title: {
     fontSize: "28px",
@@ -141,20 +144,15 @@ const style = {
 const CheckInAdmin = () => {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
-
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const res = await axios.get("https://localhost:7298/api/Booking");
+        const res = await axios.get(`${API_BASE_URL}/api/Booking`);
 
-        // ✅ Filter hanya booking dengan status 'pending'
         const filteredBookings = res.data.filter(
-          (b) => b.status?.toLowerCase() === "pending"
+          (b) => b.status?.toLowerCase() === "pending",
         );
         setBookings(filteredBookings);
       } catch (err) {
@@ -186,8 +184,8 @@ const CheckInAdmin = () => {
 
   const handleApprove = async (id) => {
     try {
-      await axios.patch(`https://localhost:7298/api/Booking/${id}`, {
-        status: "active", // Changed from "waiting-checkout" to "active"
+      await axios.patch(`${API_BASE_URL}/api/Booking/${id}`, {
+        status: "active",
         checkInApprovedDate: new Date().toISOString(),
       });
 
@@ -202,7 +200,6 @@ const CheckInAdmin = () => {
 
   const handleReject = async (id) => {
     try {
-      // Pertama, dapatkan data booking yang akan di-reject
       const bookingToReject = bookings.find((b) => b.id === id);
 
       if (!bookingToReject) {
@@ -210,14 +207,12 @@ const CheckInAdmin = () => {
         return;
       }
 
-      // Update status booking menjadi cancelled
-      await axios.patch(`https://localhost:7298/api/Booking/${id}`, {
+      await axios.patch(`${API_BASE_URL}/api/Booking/${id}`, {
         status: "cancelled",
         paymentStatus: "cancelled",
       });
 
-      // Kembalikan jumlah kamar yang tersedia
-      await axios.patch(`https://localhost:7298/api/Room/restore-quantity`, {
+      await axios.patch(`${API_BASE_URL}/api/Room/restore-quantity`, {
         roomType: bookingToReject.roomType,
       });
 
@@ -230,19 +225,9 @@ const CheckInAdmin = () => {
     }
   };
 
-  const user = JSON.parse(sessionStorage.getItem("user"));
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/signin" replace />;
-  }
-
   return (
     <div style={style.container}>
-      <SidebarAdmin
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        hoveredItem={hoveredItem}
-        setHoveredItem={setHoveredItem}
-      />
+      <SidebarAdmin />
       <main style={style.main}>
         <h1 style={style.title}>Check In Approval</h1>
         <div style={style.tableContainer}>

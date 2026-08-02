@@ -1,6 +1,5 @@
-"use client";
-
 import { useState, useEffect, useRef } from "react";
+import { API_BASE_URL } from "../services/apiConfig";
 import { useNavigate } from "react-router-dom";
 import { IoIosLock } from "react-icons/io";
 import {
@@ -13,22 +12,17 @@ import {
 import { Slide } from "@mui/material";
 import { Star } from "lucide-react";
 
-// --- Simplified UI Components (mimicking shadcn/ui with inline styles) ---
-
-// Dialog Component
 function Dialog({ open, onOpenChange, children }) {
   const dialogRef = useRef(null);
 
   useEffect(() => {
     if (open) {
       dialogRef.current?.showModal();
-      document.body.style.overflow = "hidden"; // Prevent scrolling on body
+      document.body.style.overflow = "hidden";
     } else {
       dialogRef.current?.close();
-      document.body.style.overflow = ""; // Restore scrolling on body
+      document.body.style.overflow = "";
     }
-
-    // Cleanup function to ensure scrolling is re-enabled if component unmounts
     return () => {
       document.body.style.overflow = "";
     };
@@ -44,7 +38,7 @@ function Dialog({ open, onOpenChange, children }) {
     <dialog
       ref={dialogRef}
       onClick={handleClose}
-      onCancel={() => onOpenChange(false)} // Handle escape key
+      onCancel={() => onOpenChange(false)}
       style={{
         position: "fixed",
         top: 0,
@@ -52,14 +46,14 @@ function Dialog({ open, onOpenChange, children }) {
         right: 0,
         bottom: 0,
         zIndex: 50,
-        backgroundColor: "rgba(0,0,0,0.5)", // Overlay background
-        backdropFilter: "blur(4px)", // backdrop-blur-sm
+        backgroundColor: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(4px)",
         border: "none",
         padding: 0,
         margin: 0,
         width: "100%",
         height: "100%",
-        display: open ? "flex" : "none", // Control visibility
+        display: open ? "flex" : "none",
         alignItems: "center",
         justifyContent: "center",
       }}
@@ -69,7 +63,6 @@ function Dialog({ open, onOpenChange, children }) {
   );
 }
 
-// DialogContent Component
 function DialogContent({ className, children, ...props }) {
   return (
     <div
@@ -78,14 +71,14 @@ function DialogContent({ className, children, ...props }) {
         zIndex: 50,
         display: "grid",
         width: "100%",
-        maxWidth: "425px", // sm:max-w-[425px]
-        gap: "1rem", // gap-4
-        border: "1px solid #e5e7eb", // border-input
-        backgroundColor: "white", // bg-background
-        padding: "1.5rem", // p-6
+        maxWidth: "425px",
+        gap: "1rem",
+        border: "1px solid #e5e7eb",
+        backgroundColor: "white",
+        padding: "1.5rem",
         boxShadow:
-          "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)", // shadow-lg
-        borderRadius: "0.5rem", // sm:rounded-lg
+          "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)",
+        borderRadius: "0.5rem",
       }}
       {...props}
     >
@@ -94,16 +87,14 @@ function DialogContent({ className, children, ...props }) {
   );
 }
 
-// DialogHeader Component
 function DialogHeader({ className, children, ...props }) {
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "0.375rem", // space-y-1.5
-        textAlign: "center", // text-center
-        // sm:text-left is harder to apply with inline styles without media queries
+        gap: "0.375rem",
+        textAlign: "center",
         marginBottom: "1rem",
       }}
       {...props}
@@ -113,15 +104,14 @@ function DialogHeader({ className, children, ...props }) {
   );
 }
 
-// DialogTitle Component
 function DialogTitle({ className, children, ...props }) {
   return (
     <h2
       style={{
-        fontSize: "1.25rem", // text-lg
-        fontWeight: "600", // font-semibold
-        lineHeight: "1.25", // leading-none
-        letterSpacing: "-0.025em", // tracking-tight
+        fontSize: "1.25rem",
+        fontWeight: "600",
+        lineHeight: "1.25",
+        letterSpacing: "-0.025em",
       }}
       {...props}
     >
@@ -130,13 +120,12 @@ function DialogTitle({ className, children, ...props }) {
   );
 }
 
-// DialogDescription Component
 function DialogDescription({ className, children, ...props }) {
   return (
     <p
       style={{
-        fontSize: "0.875rem", // text-sm
-        color: "#6b7280", // text-muted-foreground
+        fontSize: "0.875rem",
+        color: "#6b7280",
       }}
       {...props}
     >
@@ -145,36 +134,32 @@ function DialogDescription({ className, children, ...props }) {
   );
 }
 
-// Button Component
 function Button({ className, variant, children, ...props }) {
   const baseStyle = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     whiteSpace: "nowrap",
-    borderRadius: "0.375rem", // rounded-md
-    fontSize: "0.875rem", // text-sm
-    fontWeight: "500", // font-medium
+    borderRadius: "0.375rem",
+    fontSize: "0.875rem",
+    fontWeight: "500",
     transition:
       "background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out",
-    padding: "0.5rem 1rem", // px-4 py-2
+    padding: "0.5rem 1rem",
     cursor: "pointer",
     border: "1px solid transparent",
   };
 
   const variantStyles = {
     default: {
-      backgroundColor: "#d09500", // primary
+      backgroundColor: "#d09500",
       color: "white",
-      // Hover styles are tricky with inline styles, often require external CSS or JS for dynamic changes
     },
     outline: {
       backgroundColor: "transparent",
-      color: "#374151", // foreground
-      borderColor: "#d1d5db", // border
-      // Hover styles are tricky with inline styles
+      color: "#374151",
+      borderColor: "#d1d5db",
     },
-    // Add other variants as needed
   };
 
   const currentStyle = {
@@ -189,37 +174,32 @@ function Button({ className, variant, children, ...props }) {
   );
 }
 
-// Input Component
 function Input({ className, type = "text", ...props }) {
   return (
     <input
       type={type}
       style={{
         display: "flex",
-        height: "2.5rem", // h-10
+        height: "2.5rem",
         width: "100%",
-        borderRadius: "0.375rem", // rounded-md
-        border: "1px solid #d1d5db", // border border-input
-        backgroundColor: "white", // bg-background
-        padding: "0.5rem 0.75rem", // px-3 py-2
-        fontSize: "0.875rem", // text-sm
-        // ring-offset-background, focus-visible, disabled styles are harder with inline styles
-        // placeholder:text-muted-foreground
+        borderRadius: "0.375rem",
+        border: "1px solid #d1d5db",
+        backgroundColor: "white",
+        padding: "0.5rem 0.75rem",
+        fontSize: "0.875rem",
       }}
       {...props}
     />
   );
 }
 
-// Label Component
 function Label({ className, children, ...props }) {
   return (
     <label
       style={{
-        fontSize: "0.875rem", // text-sm
-        fontWeight: "500", // font-medium
-        lineHeight: "1.25", // leading-none
-        // peer-disabled styles are harder with inline styles
+        fontSize: "0.875rem",
+        fontWeight: "500",
+        lineHeight: "1.25",
       }}
       {...props}
     >
@@ -228,29 +208,25 @@ function Label({ className, children, ...props }) {
   );
 }
 
-// Textarea Component
 function Textarea({ className, ...props }) {
   return (
     <textarea
       style={{
         display: "flex",
-        minHeight: "5rem", // min-h-[80px]
+        minHeight: "5rem",
         width: "100%",
-        borderRadius: "0.375rem", // rounded-md
-        border: "1px solid #d1d5db", // border border-input
-        backgroundColor: "white", // bg-background
-        padding: "0.5rem 0.75rem", // px-3 py-2
-        fontSize: "0.875rem", // text-sm
+        borderRadius: "0.375rem",
+        border: "1px solid #d1d5db",
+        backgroundColor: "white",
+        padding: "0.5rem 0.75rem",
+        fontSize: "0.875rem",
         resize: "vertical",
-        // ring-offset-background, focus-visible, disabled styles are harder with inline styles
-        // placeholder:text-muted-foreground
       }}
       {...props}
     />
   );
 }
 
-// ReviewForm Component (nested within HistoryBooking.js)
 function ReviewForm({
   booking,
   onClose,
@@ -266,7 +242,7 @@ function ReviewForm({
 
   const handleSubmitReview = async (reviewData) => {
     try {
-      const response = await fetch("https://localhost:7298/api/Review", {
+      const response = await fetch(`${API_BASE_URL}/api/Review`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -278,7 +254,6 @@ function ReviewForm({
           rating: reviewData.rating,
           title: reviewData.title,
           comment: reviewData.comment,
-          // Tambahkan ini:
           fullname: reviewData.fullname || "",
           roomType: reviewData.roomType || "",
         }),
@@ -286,7 +261,7 @@ function ReviewForm({
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Error details:", errorData); // Log detail error
+        console.error("Error details:", errorData);
         throw new Error(errorData.message || "Failed to submit review");
       }
 
@@ -322,7 +297,7 @@ function ReviewForm({
         roomType: booking.roomType || "",
       };
 
-      const response = await fetch("https://localhost:7298/api/Review", {
+      const response = await fetch(`${API_BASE_URL}/api/Review`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -334,8 +309,6 @@ function ReviewForm({
         const errorData = await response.json();
         throw new Error(errorData.title || "Failed to submit review");
       }
-
-      // Update status alreadyReviewed setelah submit berhasil
       setAlreadyReviewed((prev) => ({
         ...prev,
         [booking.id]: true,
@@ -361,7 +334,7 @@ function ReviewForm({
         if (bookingItem.status === "completed") {
           try {
             const response = await fetch(
-              `https://localhost:7298/api/Review/user/${userId}/booking/${bookingItem.id}`
+              `${API_BASE_URL}/api/Review/user/${userId}/booking/${bookingItem.id}`,
             );
 
             if (!response.ok) {
@@ -402,7 +375,7 @@ function ReviewForm({
                 height: "1.5rem",
                 cursor: "pointer",
                 transition: "color 0.2s",
-                color: rating >= star ? "#d09500" : "#e5e7eb", // Primary/muted-foreground equivalent
+                color: rating >= star ? "#d09500" : "#e5e7eb",
                 fill: rating >= star ? "#d09500" : "none",
                 stroke: rating >= star ? "#d09500" : "#9ca3af",
               }}
@@ -459,9 +432,7 @@ function ReviewForm({
   );
 }
 
-// HistoryBooking Component
 const HistoryBooking = () => {
-  // State management
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
@@ -478,7 +449,6 @@ const HistoryBooking = () => {
   const [alreadyReviewed, setAlreadyReviewed] = useState({});
   const navigate = useNavigate();
 
-  // Fetch user data from sessionStorage
   useEffect(() => {
     const storedUser = JSON.parse(sessionStorage.getItem("user"));
     if (storedUser && storedUser.id) {
@@ -490,15 +460,14 @@ const HistoryBooking = () => {
     }
   }, []);
 
-  // Fetch bookings and rooms data
   useEffect(() => {
     if (!userId) return;
 
     const fetchData = async () => {
       try {
         const [bookingsRes, roomsRes] = await Promise.all([
-          fetch("https://localhost:7298/api/Booking"),
-          fetch("https://localhost:7298/api/Room"),
+          fetch(`${API_BASE_URL}/api/Booking`),
+          fetch(`${API_BASE_URL}/api/Room`),
         ]);
 
         const bookingsData = await bookingsRes.json();
@@ -508,26 +477,21 @@ const HistoryBooking = () => {
           .filter((b) => b.userId === userId)
           .map((booking) => {
             const matchedRoom = roomsData.find(
-              (room) => room.title === booking.roomType
+              (room) => room.title === booking.roomType,
             );
 
-            // Handle image URL construction with better fallbacks
-            let roomImage = "/placeholder.svg?height=180&width=220";
+            let roomImage = "";
             if (matchedRoom?.image1) {
-              // Clean the image path and ensure proper URL construction
               const imagePath = matchedRoom.image1.trim();
               if (
                 imagePath.startsWith("http://") ||
                 imagePath.startsWith("https://")
               ) {
-                // Already a full URL
                 roomImage = imagePath;
               } else if (imagePath.startsWith("/uploads/")) {
-                // Relative path starting with /uploads/
-                roomImage = `https://localhost:7298${imagePath}`;
+                roomImage = `${API_BASE_URL}${imagePath}`;
               } else {
-                // Path without /uploads/ prefix
-                roomImage = `https://localhost:7298/uploads/${imagePath}`;
+                roomImage = `${API_BASE_URL}/uploads/${imagePath}`;
               }
             }
 
@@ -563,7 +527,7 @@ const HistoryBooking = () => {
         if (bookingItem.status === "completed") {
           try {
             const response = await fetch(
-              `https://localhost:7298/api/Review/user/${userId}/booking/${bookingItem.id}`
+              `${API_BASE_URL}/api/Review/user/${userId}/booking/${bookingItem.id}`,
             );
 
             if (!response.ok) {
@@ -588,7 +552,6 @@ const HistoryBooking = () => {
     checkReviews();
   }, [userId, bookings, setAlreadyReviewed]);
 
-  // Scroll effect like navbar
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > lastScrollY) {
@@ -603,7 +566,6 @@ const HistoryBooking = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
-  // Responsive design handler
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -615,7 +577,6 @@ const HistoryBooking = () => {
   }, []);
 
   const getBookingStatus = (booking) => {
-    // 1. Priority - cancelled status
     if (
       booking.paymentStatus.toLowerCase() === "cancelled" ||
       booking.status?.toLowerCase() === "cancelled"
@@ -623,27 +584,22 @@ const HistoryBooking = () => {
       return "cancelled";
     }
 
-    // 2. If status is completed
     if (booking.status?.toLowerCase() === "completed") {
       return "completed";
     }
 
-    // 3. For active status (set by admin approval)
     if (booking.status?.toLowerCase() === "active") {
       return "active";
     }
 
-    // 4. Payment status logic
     if (booking.paymentMethod.toLowerCase().includes("cash")) {
       return booking.status?.toLowerCase() === "pending" ? "pending" : "paid";
     }
 
-    // 5. For non-cash (Midtrans)
     if (booking.paymentMethod.toLowerCase().includes("midtrans")) {
       return "paid";
     }
 
-    // Default completed if past checkout date
     return "completed";
   };
 
@@ -731,7 +687,7 @@ const HistoryBooking = () => {
 
     if (filter !== "all") {
       filtered = bookings.filter(
-        (booking) => getBookingStatus(booking) === filter
+        (booking) => getBookingStatus(booking) === filter,
       );
     }
 
@@ -741,7 +697,7 @@ const HistoryBooking = () => {
           booking.roomType.toLowerCase().includes(searchQuery) ||
           booking.bookingId.toLowerCase().includes(searchQuery) ||
           booking.roomDetails?.bed?.toLowerCase().includes(searchQuery) ||
-          booking.roomDetails?.roomView?.toLowerCase().includes(searchQuery)
+          booking.roomDetails?.roomView?.toLowerCase().includes(searchQuery),
       );
     }
 
@@ -793,7 +749,6 @@ const HistoryBooking = () => {
     }).format(amount);
   };
 
-  // Action handlers
   const handleModifyBooking = (booking) => {
     console.log("Modifying booking:", booking.bookingId);
     alert(`Modify booking ${booking.bookingId}`);
@@ -805,11 +760,10 @@ const HistoryBooking = () => {
   };
 
   const handleReviewStay = (booking) => {
-    setSelectedBookingForReview(booking); // Set the booking to be reviewed
-    setShowReviewDialog(true); // Open the review dialog
+    setSelectedBookingForReview(booking);
+    setShowReviewDialog(true);
   };
 
-  // Styles
   const styles = {
     page: {
       fontFamily:
@@ -1180,7 +1134,6 @@ const HistoryBooking = () => {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        {/* Controls Section with Slide effect */}
         <Slide direction="down" in={showControls}>
           <div style={styles.controlsCard}>
             <div
@@ -1234,7 +1187,6 @@ const HistoryBooking = () => {
           </div>
         </Slide>
 
-        {/* Loading State */}
         {loading && (
           <div
             style={{
@@ -1250,7 +1202,6 @@ const HistoryBooking = () => {
           </div>
         )}
 
-        {/* Login Required */}
         {!loading && noUser && (
           <div
             style={{
@@ -1297,7 +1248,6 @@ const HistoryBooking = () => {
           </div>
         )}
 
-        {/* Empty Booking State */}
         {!loading && !noUser && bookings.length === 0 && (
           <div style={styles.emptyState}>
             <div style={styles.emptyIcon}>
@@ -1317,7 +1267,6 @@ const HistoryBooking = () => {
           </div>
         )}
 
-        {/* Filtered Empty State */}
         {!loading &&
           !noUser &&
           filteredAndSortedBookings().length === 0 &&
@@ -1331,14 +1280,13 @@ const HistoryBooking = () => {
             </div>
           )}
 
-        {/* Bookings List */}
         {!loading && !noUser && filteredAndSortedBookings().length > 0 && (
           <div style={styles.bookingsList}>
             {filteredAndSortedBookings().map((booking) => {
               const status = getBookingStatus(booking);
               const nights = calculateNights(
                 booking.checkinDate,
-                booking.checkoutDate
+                booking.checkoutDate,
               );
               const roomDetails = booking.roomDetails;
 
@@ -1348,45 +1296,58 @@ const HistoryBooking = () => {
                     style={
                       isMobile
                         ? {
-                          ...styles.bookingContent,
-                          ...styles.mobileBookingContent,
-                        }
+                            ...styles.bookingContent,
+                            ...styles.mobileBookingContent,
+                          }
                         : styles.bookingContent
                     }
                   >
-                    {/* Room Image with Status Badge */}
                     <div
                       style={
                         isMobile
                           ? {
-                            ...styles.imageContainer,
-                            ...styles.mobileImageContainer,
-                          }
+                              ...styles.imageContainer,
+                              ...styles.mobileImageContainer,
+                            }
                           : styles.imageContainer
                       }
                     >
-                      <img
-                        src={
-                          booking.roomImage ||
-                          "/placeholder.svg?height=180&width=220"
-                        }
-                        alt={`${booking.roomType} room`}
+                      {booking.roomImage && (
+                        <img
+                          src={booking.roomImage}
+                          alt={`${booking.roomType} room`}
+                          style={{
+                            ...styles.roomImage,
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                            e.target.nextElementSibling.style.display = "flex";
+                          }}
+                          onLoad={(e) => {
+                            e.target.style.opacity = "1";
+                          }}
+                          loading="lazy"
+                        />
+                      )}
+                      <div
                         style={{
                           ...styles.roomImage,
-                          position: "absolute", // Tambahkan ini untuk memastikan gambar menutupi area
+                          position: "absolute",
                           top: 0,
                           left: 0,
+                          display: booking.roomImage ? "none" : "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: "#f3f4f6",
+                          color: "#9ca3af",
+                          fontSize: "2rem",
                         }}
-                        onError={(e) => {
-                          e.target.src =
-                            "/placeholder.svg?height=180&width=220";
-                          e.target.style.backgroundColor = "#f9fafb";
-                        }}
-                        onLoad={(e) => {
-                          e.target.style.opacity = "1";
-                        }}
-                        loading="lazy"
-                      />
+                      >
+                        <FaBed />
+                      </div>
                       <div
                         style={{
                           position: "absolute",
@@ -1401,8 +1362,9 @@ const HistoryBooking = () => {
                           backgroundColor:
                             getStatusColor(status).backgroundColor,
                           color: getStatusColor(status).color,
-                          border: `1px solid ${getStatusColor(status).borderColor
-                            }`,
+                          border: `1px solid ${
+                            getStatusColor(status).borderColor
+                          }`,
                           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                           zIndex: 2,
                         }}
@@ -1411,15 +1373,14 @@ const HistoryBooking = () => {
                       </div>
                     </div>
 
-                    {/* Booking Content */}
                     <div style={styles.contentSection}>
                       <div
                         style={
                           isMobile
                             ? {
-                              ...styles.bookingHeader,
-                              ...styles.mobileBookingHeader,
-                            }
+                                ...styles.bookingHeader,
+                                ...styles.mobileBookingHeader,
+                              }
                             : styles.bookingHeader
                         }
                       >
@@ -1431,9 +1392,9 @@ const HistoryBooking = () => {
                           style={
                             isMobile
                               ? {
-                                ...styles.priceSection,
-                                ...styles.mobilePriceSection,
-                              }
+                                  ...styles.priceSection,
+                                  ...styles.mobilePriceSection,
+                                }
                               : styles.priceSection
                           }
                         >
@@ -1444,15 +1405,14 @@ const HistoryBooking = () => {
                         </div>
                       </div>
 
-                      {/* Room Details Section */}
                       {roomDetails && (
                         <div
                           style={
                             isMobile
                               ? {
-                                ...styles.roomDetails,
-                                ...styles.mobileRoomDetails,
-                              }
+                                  ...styles.roomDetails,
+                                  ...styles.mobileRoomDetails,
+                                }
                               : styles.roomDetails
                           }
                         >
@@ -1477,7 +1437,6 @@ const HistoryBooking = () => {
                         </div>
                       )}
 
-                      {/* Booking Information Grid */}
                       <div
                         style={
                           isMobile
@@ -1510,7 +1469,7 @@ const HistoryBooking = () => {
                               style={{
                                 ...styles.statusDot,
                                 backgroundColor: getPaymentStatusColor(
-                                  booking.paymentStatus
+                                  booking.paymentStatus,
                                 ),
                               }}
                             />
@@ -1523,7 +1482,6 @@ const HistoryBooking = () => {
                         </div>
                       </div>
 
-                      {/* Special Request Section */}
                       {booking.specialRequest && (
                         <div style={styles.specialRequest}>
                           <div style={styles.specialRequestTitle}>
@@ -1535,7 +1493,6 @@ const HistoryBooking = () => {
                         </div>
                       )}
 
-                      {/* Action Buttons */}
                       <div style={styles.actions}>
                         <button
                           style={{ ...styles.button, ...styles.primaryButton }}
@@ -1572,30 +1529,32 @@ const HistoryBooking = () => {
                           </button>
                         )}
 
-                        {status === "completed" && !alreadyReviewed[booking.id] && (
-                          <button
-                            style={{
-                              ...styles.button,
-                              ...styles.secondaryButton,
-                            }}
-                            onClick={() => handleReviewStay(booking)}
-                          >
-                            ⭐ Review
-                          </button>
-                        )}
+                        {status === "completed" &&
+                          !alreadyReviewed[booking.id] && (
+                            <button
+                              style={{
+                                ...styles.button,
+                                ...styles.secondaryButton,
+                              }}
+                              onClick={() => handleReviewStay(booking)}
+                            >
+                              ⭐ Review
+                            </button>
+                          )}
 
-                        {status === "completed" && alreadyReviewed[booking.id] && (
-                          <div
-                            style={{
-                              ...styles.button,
-                              backgroundColor: "#f0f0f0",
-                              color: "#666",
-                              cursor: "default",
-                            }}
-                          >
-                            ✓ Reviewed
-                          </div>
-                        )}
+                        {status === "completed" &&
+                          alreadyReviewed[booking.id] && (
+                            <div
+                              style={{
+                                ...styles.button,
+                                backgroundColor: "#f0f0f0",
+                                color: "#666",
+                                cursor: "default",
+                              }}
+                            >
+                              ✓ Reviewed
+                            </div>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -1606,7 +1565,6 @@ const HistoryBooking = () => {
         )}
       </div>
 
-      {/* Review Dialog */}
       {selectedBookingForReview && (
         <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
           <DialogContent className="sm:max-w-[425px]">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Check } from "lucide-react";
 import SidebarAdmin from "../components/SidebarAdmin";
-import { Navigate } from "react-router-dom";
+import { API_BASE_URL } from "../services/apiConfig";
 
 const style = {
   container: {
@@ -14,6 +14,9 @@ const style = {
     flex: 1,
     padding: "30px",
     backgroundColor: "#f5f2db",
+    marginLeft: "var(--admin-sidebar-width, 232px)",
+    transition: "margin-left 0.25s ease",
+    minHeight: "100vh",
   },
   title: {
     fontSize: "28px",
@@ -164,17 +167,12 @@ const formatDate = (dateString) => {
 };
 
 const CheckOutAdmin = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [hoveredItem, setHoveredItem] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
 
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
-
-  // Fetch booking data from API
   const fetchBookings = async () => {
     try {
-      const response = await axios.get("https://localhost:7298/api/Booking");
+      const response = await axios.get(`${API_BASE_URL}/api/Booking`);
       setBookings(response.data);
     } catch (error) {
       console.error("Failed to fetch bookings:", error);
@@ -187,12 +185,11 @@ const CheckOutAdmin = () => {
 
   const handleApprove = async (id) => {
     const confirm = window.confirm(
-      "Are you sure you want to approve this check-out?"
+      "Are you sure you want to approve this check-out?",
     );
     if (!confirm) return;
 
     try {
-      // Dapatkan data booking yang akan diapprove
       const bookingToApprove = bookings.find((b) => b.id === id);
 
       if (!bookingToApprove) {
@@ -200,23 +197,20 @@ const CheckOutAdmin = () => {
         return;
       }
 
-      // Update status booking menjadi completed
-      await axios.patch(`https://localhost:7298/api/Booking/${id}`, {
+      await axios.patch(`${API_BASE_URL}/api/Booking/${id}`, {
         status: "completed",
         paymentStatus: "completed",
         checkOutApprovedDate: new Date().toISOString(),
       });
 
-      // Kembalikan jumlah kamar yang tersedia
-      await axios.patch(`https://localhost:7298/api/Room/restore-quantity`, {
+      await axios.patch(`${API_BASE_URL}/api/Room/restore-quantity`, {
         roomType: bookingToApprove.roomType,
       });
 
       alert(
-        `Check-out approved for booking ID: ${id} and room quantity restored`
+        `Check-out approved for booking ID: ${id} and room quantity restored`,
       );
 
-      // Update state tanpa refetch
       setBookings((prev) => prev.filter((booking) => booking.id !== id));
       setSelectedBooking(null);
     } catch (error) {
@@ -225,24 +219,13 @@ const CheckOutAdmin = () => {
     }
   };
 
-  // Filter bookings with status "active"
   const activeBookings = bookings.filter(
-    (b) => b.status?.toLowerCase() === "active"
+    (b) => b.status?.toLowerCase() === "active",
   );
-
-  const user = JSON.parse(sessionStorage.getItem("user"));
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/signin" replace />;
-  }
 
   return (
     <div style={style.container}>
-      <SidebarAdmin
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        hoveredItem={hoveredItem}
-        setHoveredItem={setHoveredItem}
-      />
+      <SidebarAdmin />
       <main style={style.main}>
         <h1 style={style.title}>Check Out Approval</h1>
         <div style={style.tableContainer}>
@@ -272,7 +255,7 @@ const CheckOutAdmin = () => {
                       <span
                         style={{
                           ...style.badge,
-                          backgroundColor: "#4caf50", // Green for active
+                          backgroundColor: "#4caf50",
                         }}
                       >
                         Active
@@ -314,7 +297,6 @@ const CheckOutAdmin = () => {
           </table>
         </div>
 
-        {/* Modal detail */}
         {selectedBooking && (
           <div style={style.modalOverlay}>
             <div style={style.modal}>

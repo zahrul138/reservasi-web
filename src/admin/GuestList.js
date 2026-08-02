@@ -1,8 +1,6 @@
-// src/admin/GuestList.js
 import React, { useState, useEffect } from "react";
 import SidebarAdmin from "../components/SidebarAdmin";
 import { getAllUsers } from "../services/userService";
-import { Navigate } from "react-router-dom";
 
 const style = {
   container: {
@@ -14,6 +12,9 @@ const style = {
     flex: 1,
     padding: "30px",
     backgroundColor: "#f5f2db",
+    marginLeft: "var(--admin-sidebar-width, 232px)",
+    transition: "margin-left 0.25s ease",
+    minHeight: "100vh",
   },
   title: {
     fontSize: "28px",
@@ -64,11 +65,7 @@ const formatDate = (dateString) => {
 };
 
 const GuestList = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [hoveredItem, setHoveredItem] = useState(null);
   const [guests, setGuests] = useState([]);
-
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -82,19 +79,9 @@ const GuestList = () => {
     fetchGuests();
   }, []);
 
-  const user = JSON.parse(sessionStorage.getItem("user"));
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/signin" replace />;
-  }
-
   return (
     <div style={style.container}>
-      <SidebarAdmin
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        hoveredItem={hoveredItem}
-        setHoveredItem={setHoveredItem}
-      />
+      <SidebarAdmin />
 
       <main style={style.main}>
         <h1 style={style.title}>Guest Account</h1>

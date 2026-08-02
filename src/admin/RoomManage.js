@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../services/apiConfig";
 import SidebarAdmin from "../components/SidebarAdmin";
-import { Navigate } from "react-router-dom";
 import {
   FaWifi,
   FaTv,
@@ -30,7 +30,6 @@ import {
   FiPlusCircle,
 } from "react-icons/fi";
 
-// Constants defined inside the component
 const AMENITY_OPTIONS = [
   { icon: <FaWifi />, name: "High-speed Wi-Fi" },
   { icon: <FaTv />, name: "Smart TV with streaming" },
@@ -84,17 +83,11 @@ const POLICY_OPTIONS = [
 function RoomManage() {
   const [rooms, setRooms] = useState([]);
   const [editingRoom, setEditingRoom] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [hoveredItem, setHoveredItem] = useState(null);
   const [pendingQuantityChange, setPendingQuantityChange] = useState(null);
   const [tempQuantityInputs, setTempQuantityInputs] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
-  // const [showEditModal, setShowEditModal] = useState(false);
-  // const [modalKey, setModalKey] = useState(0);
-  // const [loading, setLoading] = useState(false);
 
-  // HAPUS slash di akhir
-  const API_URL = "https://localhost:7298";
+  const API_URL = API_BASE_URL;
 
   const parseSafe = (value) => {
     try {
@@ -110,7 +103,6 @@ function RoomManage() {
     }
   };
 
-  // Fetch Rooms from API
   const fetchRoomsFromAPI = async () => {
     try {
       const res = await fetch(`${API_URL}/api/room`);
@@ -142,13 +134,9 @@ function RoomManage() {
     }
   };
 
-  // ----------- CRUD -----------
-  // ADD Room
   const handleAddRoom = async (roomData) => {
     try {
       const formData = new FormData();
-
-      // Upload gambar terlebih dahulu
       const files = roomData.images.filter((img) => img instanceof File);
       let uploaded = ["", "", ""];
       if (files.length) {
@@ -171,7 +159,6 @@ function RoomManage() {
         uploaded = roomData.images;
       }
 
-      // Isi FormData untuk Create Room
       formData.append("Title", roomData.title);
       formData.append("ShortDescription", roomData.shortDescription);
       formData.append("FullDescription", roomData.fullDescription);
@@ -184,16 +171,13 @@ function RoomManage() {
       formData.append("Image2", uploaded[1] || "");
       formData.append("Image3", uploaded[2] || "");
       formData.append("Quantity", parseInt(roomData.quantity, 10) || 1);
-
-      // Format array jadi string atau json
       formData.append("features", JSON.stringify(roomData.features));
       formData.append("policies", JSON.stringify(roomData.policies));
       formData.append(
         "amenities",
-        JSON.stringify(roomData.amenities.map((a) => a.name))
+        JSON.stringify(roomData.amenities.map((a) => a.name)),
       );
 
-      // Kirim request
       const resp = await fetch(`${API_URL}/api/room`, {
         method: "POST",
         body: formData,
@@ -203,7 +187,6 @@ function RoomManage() {
         alert("Tambah Room gagal! Cek API.");
         return;
       }
-
       fetchRoomsFromAPI && fetchRoomsFromAPI();
       setShowAddModal(false);
     } catch (err) {
@@ -214,9 +197,45 @@ function RoomManage() {
 
   const handleUpdateRoom = async (roomId, data) => {
     try {
-      const formData = new FormData();
+      const filesToUpload = [];
+      const fileIndexes = [];
+      data.images.forEach((img, idx) => {
+        if (img instanceof File) {
+          filesToUpload.push(img);
+          fileIndexes.push(idx);
+        }
+      });
 
-      // Data dasar
+      const finalImages = ["", "", ""];
+      data.images.forEach((img, idx) => {
+        if (typeof img === "string") {
+          finalImages[idx] = img;
+        }
+      });
+
+      if (filesToUpload.length > 0) {
+        const imageFormData = new FormData();
+        filesToUpload.forEach((file) => imageFormData.append("images", file));
+
+        const uploadRes = await fetch(`${API_BASE_URL}/api/upload/multi`, {
+          method: "POST",
+          body: imageFormData,
+        });
+
+        if (!uploadRes.ok) {
+          alert("Upload gambar gagal!");
+          return;
+        }
+
+        const uploadResult = await uploadRes.json();
+        const uploadedUrls = uploadResult.urls || [];
+
+        fileIndexes.forEach((idx, i) => {
+          finalImages[idx] = uploadedUrls[i] || "";
+        });
+      }
+
+      const formData = new FormData();
       formData.append("Id", roomId);
       formData.append("Title", data.title);
       formData.append("ShortDescription", data.shortDescription);
@@ -227,65 +246,43 @@ function RoomManage() {
       formData.append("Bed", data.bed);
       formData.append("RoomView", data.roomView);
       formData.append("Quantity", data.quantity);
-
-      // Ubah array ke format string atau JSON
       formData.append("features", JSON.stringify(data.features));
       formData.append("policies", JSON.stringify(data.policies));
       formData.append(
         "amenities",
-        JSON.stringify(data.amenities.map((a) => a.name))
+        JSON.stringify(data.amenities.map((a) => a.name)),
       );
+      formData.append("Image1", finalImages[0]);
+      formData.append("Image2", finalImages[1]);
+      formData.append("Image3", finalImages[2]);
 
-      // Kirim gambar lama (string) agar tidak terhapus
-      formData.append(
-        "Image1",
-        typeof data.images[0] === "string" ? data.images[0] : ""
-      );
-      formData.append(
-        "Image2",
-        typeof data.images[1] === "string" ? data.images[1] : ""
-      );
-      formData.append(
-        "Image3",
-        typeof data.images[2] === "string" ? data.images[2] : ""
-      );
-
-      // Kirim gambar baru (File)
-      data.images.forEach((img) => {
-        if (img instanceof File) {
-          formData.append("Images", img); // ASP.NET expects List<IFormFile>
-        }
-      });
-
-      // Kirim ke backend
       const res = await axios.put(
-        `https://localhost:7298/api/Room/${roomId}`,
+        `${API_BASE_URL}/api/Room/${roomId}`,
         formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
-      console.log("Room updated:", res.data);
-
-      // Refetch data biar policies/amenities/images normal kembali
       setEditingRoom(null);
       fetchRoomsFromAPI();
     } catch (err) {
       console.error("Update failed:", err);
+      alert("Terjadi error saat memperbarui room.");
     }
   };
 
-  // DELETE Room
   const handleDeleteRoom = async (id) => {
     await fetch(`${API_URL}/api/room/${id}`, { method: "DELETE" });
     fetchRoomsFromAPI();
   };
 
-  // --- RoomForm & Picker Handler ---
   const RoomForm = ({ initialData, onSubmit }) => {
+    const [formInstanceId] = useState(() =>
+      Math.random().toString(36).slice(2),
+    );
     const toAmenityObject = (arr) => {
       if (!Array.isArray(arr)) return [];
       if (arr.length > 0 && typeof arr[0] === "object" && arr[0].name)
@@ -298,7 +295,6 @@ function RoomManage() {
     const [showFeaturePicker, setShowFeaturePicker] = useState(false);
     const [showAmenityPicker, setShowAmenityPicker] = useState(false);
     const [showPolicyPicker, setShowPolicyPicker] = useState(false);
-    // const [fileNames, setFileNames] = useState({});
     const [inputKeys, setInputKeys] = useState(["0", "1", "2"]);
     const normalizedImages =
       initialData?.images?.length === 3
@@ -353,7 +349,7 @@ function RoomManage() {
       newPreview[index] = URL.createObjectURL(file);
 
       const newKeys = [...inputKeys];
-      newKeys[index] = Date.now().toString(); // force refresh input
+      newKeys[index] = Date.now().toString();
 
       setFormData((prev) => ({ ...prev, images: newImages }));
       setPreviewImages(newPreview);
@@ -375,7 +371,6 @@ function RoomManage() {
       setInputKeys(updatedKeys);
     };
 
-    // Tambah Feature
     const addFeatureFromPicker = (featureOption) => {
       setFormData((prev) => ({
         ...prev,
@@ -385,7 +380,6 @@ function RoomManage() {
       }));
     };
 
-    // Hapus Feature
     const removeFeature = (index) => {
       setFormData((prev) => ({
         ...prev,
@@ -393,7 +387,6 @@ function RoomManage() {
       }));
     };
 
-    // Tambah Amenity
     const addAmenityFromPicker = (amenityOption) => {
       setFormData((prev) => ({
         ...prev,
@@ -403,15 +396,6 @@ function RoomManage() {
       }));
     };
 
-    // Hapus Amenity
-    // const removeAmenity = (index) => {
-    //   setFormData(prev => ({
-    //     ...prev,
-    //     amenities: prev.amenities.filter((_, i) => i !== index)
-    //   }));
-    // };
-
-    // Tambah Policy
     const addPolicyFromPicker = (policyOption) => {
       setFormData((prev) => ({
         ...prev,
@@ -421,7 +405,6 @@ function RoomManage() {
       }));
     };
 
-    // Hapus Policy
     const removePolicy = (index) => {
       setFormData((prev) => ({
         ...prev,
@@ -434,17 +417,11 @@ function RoomManage() {
       return "Rp " + value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
-    const user = JSON.parse(sessionStorage.getItem("user"));
-    if (!user || user.role !== "admin") {
-      return <Navigate to="/signin" replace />;
-    }
-
     return (
       <form
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: "20px" }}
       >
-        {/* Basic Information */}
         <div style={{ marginBottom: "25px" }}>
           <h3
             style={{
@@ -545,7 +522,7 @@ function RoomManage() {
                 inputMode="numeric"
                 value={formatRupiah(formData.price)}
                 onChange={(e) => {
-                  const rawValue = e.target.value.replace(/[^\d]/g, ""); // Hapus semua karakter kecuali angka
+                  const rawValue = e.target.value.replace(/[^\d]/g, "");
                   setFormData((prev) => ({ ...prev, price: Number(rawValue) }));
                 }}
                 style={{
@@ -758,13 +735,9 @@ function RoomManage() {
               placeholder="e.g., 5"
               required
             />
-            <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
-              How many rooms of this type are available in your hotel?
-            </div>
           </div>
         </div>
 
-        {/* Room Images */}
         <div style={{ marginBottom: "25px" }}>
           <h3
             style={{
@@ -796,7 +769,6 @@ function RoomManage() {
                   gap: "10px",
                 }}
               >
-                {/* Label */}
                 <label
                   style={{
                     fontSize: "14px",
@@ -811,10 +783,9 @@ function RoomManage() {
                   Image {index + 1} {index === 0 && "(Main)"}
                 </label>
 
-                {/* Upload Button */}
                 <div>
                   <label
-                    htmlFor={`image-upload-${index}`}
+                    htmlFor={`image-upload-${formInstanceId}-${index}`}
                     style={{
                       display: "inline-block",
                       padding: "10px 20px",
@@ -834,10 +805,9 @@ function RoomManage() {
                     accept="image/*"
                     onChange={(e) => handleImageUpload(e, index)}
                     style={{ display: "none" }}
-                    id={`image-upload-${index}`}
+                    id={`image-upload-${formInstanceId}-${index}`}
                   />
 
-                  {/* Nama file */}
                   {formData.images[index] instanceof File && (
                     <div
                       style={{
@@ -864,7 +834,6 @@ function RoomManage() {
                     )}
                 </div>
 
-                {/* Preview Gambar */}
                 <div
                   style={{
                     position: "relative",
@@ -894,7 +863,6 @@ function RoomManage() {
                           e.currentTarget.src = "/default-placeholder.png";
                         }}
                       />
-                      {/* Tombol Remove */}
                       <button
                         type="button"
                         onClick={() => handleImageRemove(index)}
@@ -936,7 +904,6 @@ function RoomManage() {
           </div>
         </div>
 
-        {/* Room Features */}
         <div style={{ marginBottom: "25px" }}>
           <h3
             style={{
@@ -989,7 +956,7 @@ function RoomManage() {
             >
               {FEATURE_OPTIONS.map((featureOption) => {
                 const isSelected = formData.features.includes(
-                  featureOption.name
+                  featureOption.name,
                 );
                 return (
                   <div
@@ -1135,7 +1102,7 @@ function RoomManage() {
             >
               {AMENITY_OPTIONS.map((amenityOption) => {
                 const isSelected = formData.amenities.some(
-                  (amenity) => amenity.name === amenityOption.name
+                  (amenity) => amenity.name === amenityOption.name,
                 );
 
                 return (
@@ -1296,7 +1263,7 @@ function RoomManage() {
             >
               {POLICY_OPTIONS.map((policyOption) => {
                 const isSelected = formData.policies.includes(
-                  policyOption.name
+                  policyOption.name,
                 );
 
                 return (
@@ -1391,7 +1358,6 @@ function RoomManage() {
           </div>
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           style={{
@@ -1412,11 +1378,6 @@ function RoomManage() {
     );
   };
 
-  // Card Romm Grid
-
-  // Component logic
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-
   const saveRooms = (updatedRooms) => {
     setRooms(updatedRooms);
     const tempInputs = {};
@@ -1425,15 +1386,6 @@ function RoomManage() {
     });
     setTempQuantityInputs(tempInputs);
   };
-
-  // const handleEditRoom = (roomData) => {
-  //   if (!editingRoom) return
-
-  //   console.log("Editing room with data:", roomData) // Debug log
-  //   const updatedRooms = rooms.map((room) => (room.id === editingRoom.id ? { ...roomData, id: editingRoom.id } : room))
-  //   saveRooms(updatedRooms)
-  //   setEditingRoom(null)
-  // }
 
   const requestQuantityChange = (roomId, newQuantity, changeType) => {
     const room = rooms.find((r) => r.id === roomId);
@@ -1450,16 +1402,26 @@ function RoomManage() {
     });
   };
 
-  const confirmQuantityChange = () => {
+  const confirmQuantityChange = async () => {
     if (!pendingQuantityChange) return;
 
-    const updatedRooms = rooms.map((room) =>
-      room.id === pendingQuantityChange.roomId
-        ? { ...room, quantity: pendingQuantityChange.newQuantity }
-        : room
-    );
-    saveRooms(updatedRooms);
-    setPendingQuantityChange(null);
+    const { roomId, newQuantity } = pendingQuantityChange;
+
+    try {
+      await axios.patch(`${API_BASE_URL}/api/Room/${roomId}/quantity`, {
+        quantity: newQuantity,
+      });
+
+      const updatedRooms = rooms.map((room) =>
+        room.id === roomId ? { ...room, quantity: newQuantity } : room,
+      );
+      saveRooms(updatedRooms);
+    } catch (err) {
+      console.error("Gagal menyimpan perubahan kuantitas:", err);
+      alert("Gagal menyimpan perubahan kuantitas ke server.");
+    } finally {
+      setPendingQuantityChange(null);
+    }
   };
 
   const cancelQuantityChange = () => {
@@ -1516,7 +1478,6 @@ function RoomManage() {
   return (
     <div className="room-manage-page">
       <style>{`
-        /* Room Management Page Styles */
         .room-manage-page {
           min-height: 100vh;
           display: flex;
@@ -1527,6 +1488,9 @@ function RoomManage() {
           flex: 1;
           padding: 30px;
           background-color: #f5f2db;
+          margin-left: var(--admin-sidebar-width, 232px);
+          transition: margin-left 0.25s ease;
+          min-height: 100vh;
         }
 
         .page-title {
@@ -1872,7 +1836,6 @@ function RoomManage() {
           background-color: #da190b;
         }
 
-        /* Responsive Styles */
         @media (max-width: 1024px) {
           .rooms-grid {
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -1914,15 +1877,9 @@ function RoomManage() {
         }
       `}</style>
 
-      <SidebarAdmin
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        hoveredItem={hoveredItem}
-        setHoveredItem={setHoveredItem}
-      />
+      <SidebarAdmin />
 
       <main className="main-content">
-        {/* Header */}
         <div className="page-header">
           <div className="header-left">
             <h1 className="page-title">Room Management</h1>
@@ -1936,7 +1893,6 @@ function RoomManage() {
           </button>
         </div>
 
-        {/* Rooms Grid */}
         <div className="rooms-grid">
           {rooms.map((room) => (
             <div key={room.id} className="room-card">
@@ -1945,7 +1901,7 @@ function RoomManage() {
                   src={
                     room.images && room.images[0]
                       ? room.images[0].startsWith("/uploads/")
-                        ? `https://localhost:7298${room.images[0]}`
+                        ? `${API_BASE_URL}${room.images[0]}`
                         : room.images[0]
                       : "https://via.placeholder.com/350x200"
                   }
@@ -1982,11 +1938,10 @@ function RoomManage() {
                   </div>
                 </div>
 
-                {/* Features Section */}
                 {(() => {
                   const features = Array.isArray(room.features)
                     ? room.features
-                    : parseSafe(room.features); // fallback kalau string JSON
+                    : parseSafe(room.features);
 
                   return (
                     features.length > 0 && (
@@ -2034,7 +1989,6 @@ function RoomManage() {
                   );
                 })()}
 
-                {/* Amenities Section */}
                 {Array.isArray(room.amenities) && room.amenities.length > 0 && (
                   <div style={{ marginBottom: "15px" }}>
                     <div
@@ -2076,7 +2030,6 @@ function RoomManage() {
                   </div>
                 )}
 
-                {/* Policies Section */}
                 {(() => {
                   const policies = Array.isArray(room.policies)
                     ? room.policies
@@ -2128,7 +2081,6 @@ function RoomManage() {
                   );
                 })()}
 
-                {/* Quantity Controls */}
                 <div className="quantity-section">
                   <div className="quantity-header">Room Quantity</div>
                   <div className="quantity-controls">
@@ -2157,7 +2109,7 @@ function RoomManage() {
                       onChange={(e) =>
                         handleDirectQuantityChange(
                           room.id,
-                          Number.parseInt(e.target.value) || 0
+                          Number.parseInt(e.target.value) || 0,
                         )
                       }
                       onBlur={() => handleQuantityInputBlur(room.id)}
@@ -2200,7 +2152,6 @@ function RoomManage() {
           </div>
         )}
 
-        {/* Quantity Change Confirmation Dialog */}
         {pendingQuantityChange && (
           <div className="modal-overlay">
             <div className="confirmation-dialog">
@@ -2226,7 +2177,6 @@ function RoomManage() {
           </div>
         )}
 
-        {/* Add Room Modal (SELALU ADA, cuma toggle show/hide) */}
         <div
           className="modal-overlay"
           style={{ display: showAddModal ? "flex" : "none" }}
@@ -2247,7 +2197,6 @@ function RoomManage() {
           </div>
         </div>
 
-        {/* Edit Room Modal */}
         <div
           className="modal-overlay"
           style={{ display: editingRoom ? "flex" : "none" }}
@@ -2273,7 +2222,7 @@ function RoomManage() {
                       console.error(
                         "Editing room or data is undefined",
                         editingRoom,
-                        data
+                        data,
                       );
                     }
                   }}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import SidebarAdmin from "../components/SidebarAdmin";
-import { Navigate } from "react-router-dom";
+import { API_BASE_URL } from "../services/apiConfig";
 
 const style = {
   container: {
@@ -13,6 +13,9 @@ const style = {
     flex: 1,
     padding: "30px",
     backgroundColor: "#f5f2db",
+    marginLeft: "var(--admin-sidebar-width, 232px)",
+    transition: "margin-left 0.25s ease",
+    minHeight: "100vh",
   },
   title: {
     fontSize: "28px",
@@ -143,17 +146,13 @@ const formatDate = (dateString) => {
 };
 
 const HistoryAdmin = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [hoveredItem, setHoveredItem] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
-
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const res = await axios.get("https://localhost:7298/api/Booking");
+        const res = await axios.get(`${API_BASE_URL}/api/Booking`);
         setBookings(res.data);
       } catch (err) {
         console.error("Gagal mengambil data booking:", err);
@@ -164,22 +163,12 @@ const HistoryAdmin = () => {
   }, []);
 
   const completedBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "completed"
+    (booking) => booking.status?.toLowerCase() === "completed",
   );
-
-  const user = JSON.parse(sessionStorage.getItem("user"));
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/signin" replace />;
-  }
 
   return (
     <div style={style.container}>
-      <SidebarAdmin
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        hoveredItem={hoveredItem}
-        setHoveredItem={setHoveredItem}
-      />
+      <SidebarAdmin />
       <main style={style.main}>
         <h1 style={style.title}>History Booking</h1>
         <div style={style.tableContainer}>
