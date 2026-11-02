@@ -198,8 +198,8 @@ const CheckOutAdmin = () => {
       }
 
       await axios.patch(`${API_BASE_URL}/api/Booking/${id}`, {
-        status: "completed",
-        paymentStatus: "completed",
+        status: "Completed",
+        paymentStatus: "Completed",
         checkOutApprovedDate: new Date().toISOString(),
       });
 
@@ -372,7 +372,7 @@ const CheckOutAdmin = () => {
                   style={{ ...style.actionBtn, ...style.approveBtn }}
                   onClick={() => handleApprove(selectedBooking.id)}
                 >
-                  <Check size={16} color="#fff" /> &nbsp; Approve Check Out
+                  <Check size={16} color="#fff" /> &nbsp; Complete Check Out
                 </button>
               </div>
             </div>

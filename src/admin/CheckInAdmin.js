@@ -208,8 +208,8 @@ const CheckInAdmin = () => {
       }
 
       await axios.patch(`${API_BASE_URL}/api/Booking/${id}`, {
-        status: "cancelled",
-        paymentStatus: "cancelled",
+        status: "Cancelled",
+        paymentStatus: "Cancelled",
       });
 
       await axios.patch(`${API_BASE_URL}/api/Room/restore-quantity`, {
@@ -380,13 +380,13 @@ const CheckInAdmin = () => {
                   style={{ ...style.actionBtn, ...style.approveBtn }}
                   onClick={() => handleApprove(selectedBooking.id)}
                 >
-                  <Check size={16} color="#fff" /> &nbsp; Approve
+                  <Check size={16} color="#fff" /> &nbsp; Completed
                 </button>
                 <button
                   style={{ ...style.actionBtn, ...style.rejectBtn }}
                   onClick={() => handleReject(selectedBooking.id)}
                 >
-                  <X size={16} color="#fff" /> &nbsp; Reject
+                  <X size={16} color="#fff" /> &nbsp; Cancelled
                 </button>
               </div>
             </div>

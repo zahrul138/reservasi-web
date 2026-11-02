@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import SidebarAdmin from "../components/SidebarAdmin";
 import { API_BASE_URL } from "../services/apiConfig";
+import { FiTrash2 } from "react-icons/fi";
 
 const style = {
   container: {
@@ -58,6 +59,9 @@ const style = {
   },
   detailBtn: {
     backgroundColor: "#1976d2",
+  },
+  deleteBtn: {
+    backgroundColor: "#d32f2f",
   },
   modalOverlay: {
     position: "fixed",
@@ -124,6 +128,7 @@ const style = {
     fontSize: "20px",
     cursor: "pointer",
   },
+  
 };
 
 const formatDate = (dateString) => {
@@ -152,10 +157,10 @@ const HistoryAdmin = () => {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/Booking`);
+        const res = await axios.get(`${API_BASE_URL}/api/booking`);
         setBookings(res.data);
       } catch (err) {
-        console.error("Gagal mengambil data booking:", err);
+        console.error("Failed to retrieve bookings:", err);
       }
     };
 
@@ -163,8 +168,19 @@ const HistoryAdmin = () => {
   }, []);
 
   const completedBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "completed",
+    (booking) => booking.status?.toLowerCase() === "completed" || booking.status?.toLowerCase() === "cancelled",
   );
+
+  const handleDeleteHistory = async (id) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/booking/${id}`);
+      setBookings((bookings) => bookings.filter((booking) => booking.id !== id));
+      alert("Booking history deleted successfully.");
+    } catch (error) {
+      console.error("Failed to delete booking history:", error);
+      alert("Failed to delete booking history.");
+    }
+  };
 
   return (
     <div style={style.container}>
@@ -180,7 +196,8 @@ const HistoryAdmin = () => {
                 <th style={style.th}>Room</th>
                 <th style={style.th}>Check-in</th>
                 <th style={style.th}>Check-out</th>
-                <th style={style.th}>Detail</th>
+                <th style={style.th}>Status</th>
+                <th style={style.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -192,12 +209,20 @@ const HistoryAdmin = () => {
                     <td style={style.td}>{booking.roomType}</td>
                     <td style={style.td}>{formatDate(booking.checkinDate)}</td>
                     <td style={style.td}>{formatDate(booking.checkoutDate)}</td>
+                    <td style={style.td}>{booking.status}</td>
                     <td style={style.td}>
                       <button
                         style={{ ...style.actionBtn, ...style.detailBtn }}
                         onClick={() => setSelectedBooking(booking)}
                       >
-                        More
+                        Details
+                      </button>
+                      <button
+                        style={{ ...style.actionBtn, ...style.deleteBtn }}
+                        onClick={() => handleDeleteHistory(booking.id)}
+                      >
+                        <FiTrash2 size={12} />
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -205,14 +230,14 @@ const HistoryAdmin = () => {
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     style={{
                       ...style.td,
                       textAlign: "center",
                       padding: "30px",
                     }}
                   >
-                    No completed check-out found.
+                    No completed or cancelled bookings found.
                   </td>
                 </tr>
               )}
