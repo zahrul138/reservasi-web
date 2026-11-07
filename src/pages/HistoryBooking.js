@@ -3,6 +3,11 @@ import { API_BASE_URL } from "../services/apiConfig";
 import { useNavigate } from "react-router-dom";
 import { IoIosLock } from "react-icons/io";
 import {
+  createTransaction,
+  loadSnap,
+  syncPaymentStatus,
+} from "../utils/midtrans";
+import {
   FaBuilding,
   FaBed,
   FaRulerCombined,
@@ -227,53 +232,16 @@ function Textarea({ className, ...props }) {
   );
 }
 
-function ReviewForm({
-  booking,
-  onClose,
-  userId,
-  bookings,
-  alreadyReviewed,
-  setAlreadyReviewed,
-}) {
+function ReviewForm({ booking, onClose, existingReview, onSubmitted }) {
   const [rating, setRating] = useState(0);
   const [title, setTitle] = useState("");
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmitReview = async (reviewData) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/Review`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          bookingId: reviewData.bookingId,
-          roomId: reviewData.roomId,
-          userId: reviewData.userId,
-          rating: reviewData.rating,
-          title: reviewData.title,
-          comment: reviewData.comment,
-          fullname: reviewData.fullname || "",
-          roomType: reviewData.roomType || "",
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error details:", errorData);
-        throw new Error(errorData.message || "Failed to submit review");
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error submitting review:", error);
-      throw error;
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (existingReview) return;
 
     if (rating === 0) {
       alert("Please select a rating");
@@ -309,11 +277,11 @@ function ReviewForm({
         const errorData = await response.json();
         throw new Error(errorData.title || "Failed to submit review");
       }
-      setAlreadyReviewed((prev) => ({
-        ...prev,
-        [booking.id]: true,
-      }));
 
+      onSubmitted({
+        ...reviewData,
+        createdAt: new Date().toISOString(),
+      });
       onClose();
       alert("Review submitted successfully!");
     } catch (error) {
@@ -324,40 +292,50 @@ function ReviewForm({
     }
   };
 
-  useEffect(() => {
-    if (!userId || !bookings || bookings.length === 0) return;
-
-    const checkReviews = async () => {
-      const reviewStatus = {};
-
-      for (const bookingItem of bookings) {
-        if (bookingItem.status === "completed") {
-          try {
-            const response = await fetch(
-              `${API_BASE_URL}/api/Review/user/${userId}/booking/${bookingItem.id}`,
-            );
-
-            if (!response.ok) {
-              reviewStatus[bookingItem.id] = false;
-              continue;
-            }
-
-            const hasReviewed = await response.json();
-            reviewStatus[bookingItem.id] = hasReviewed;
-          } catch (error) {
-            console.error("Error checking review status:", error);
-            reviewStatus[bookingItem.id] = false;
-          }
-        } else {
-          reviewStatus[bookingItem.id] = false;
-        }
-      }
-
-      setAlreadyReviewed(reviewStatus);
-    };
-
-    checkReviews();
-  }, [userId, bookings, setAlreadyReviewed]);
+  if (existingReview) {
+    return (
+      <div style={{ display: "grid", gap: "1rem", padding: "1rem" }}>
+        <div>
+          <Label>Rating</Label>
+          <div
+            aria-label={`${existingReview.rating} out of 5 stars`}
+            style={{ display: "flex", gap: "0.25rem", marginTop: "0.5rem" }}
+          >
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                style={{
+                  width: "1.5rem",
+                  height: "1.5rem",
+                  color: existingReview.rating >= star ? "#d09500" : "#e5e7eb",
+                  fill: existingReview.rating >= star ? "#d09500" : "none",
+                  stroke:
+                    existingReview.rating >= star ? "#d09500" : "#9ca3af",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>Review Title</Label>
+          <p>{existingReview.title || "-"}</p>
+        </div>
+        <div>
+          <Label>Your Review</Label>
+          <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {existingReview.comment || "-"}
+          </p>
+        </div>
+        <div
+          style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}
+        >
+          <Button type="button" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -446,8 +424,69 @@ const HistoryBooking = () => {
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] =
     useState(null);
-  const [alreadyReviewed, setAlreadyReviewed] = useState({});
+  const [reviewsByBooking, setReviewsByBooking] = useState({});
+  const [isReviewStatusLoading, setIsReviewStatusLoading] = useState(true);
+  const [reviewStatusError, setReviewStatusError] = useState(false);
   const navigate = useNavigate();
+
+  const [processingId, setProcessingId] = useState(null);
+
+  const refreshBooking = (updated) =>
+    setBookings((prev) =>
+      prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)),
+    );
+
+  const handleContinuePayment = async (booking) => {
+    setProcessingId(booking.id);
+    try {
+      await loadSnap();
+      const data = await createTransaction(booking.id);
+
+      const finish = async () => {
+        try {
+          const updated = await syncPaymentStatus(booking.id);
+          if (updated) refreshBooking(updated);
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setProcessingId(null);
+        }
+      };
+
+      window.snap.pay(data.token, {
+        onSuccess: finish,
+        onPending: finish,
+        onError: finish,
+        onClose: () => setProcessingId(null),
+      });
+    } catch (error) {
+      alert(error.message || "Failed to start payment.");
+      setProcessingId(null);
+    }
+  };
+
+  const handleSwitchToCash = async (booking) => {
+    if (!window.confirm("Switch this booking to pay on arrival (cash)?"))
+      return;
+
+    setProcessingId(booking.id);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/Payment/switch-to-cash/${booking.id}`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.message || "Failed to switch payment method.");
+
+      refreshBooking(data.booking);
+      alert("Your booking is now set to pay on arrival.");
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   useEffect(() => {
     const storedUser = JSON.parse(sessionStorage.getItem("user"));
@@ -518,39 +557,44 @@ const HistoryBooking = () => {
   }, [userId]);
 
   useEffect(() => {
-    if (!userId || !bookings || bookings.length === 0) return;
+    if (!userId) return;
 
-    const checkReviews = async () => {
-      const reviewStatus = {};
-
-      for (const bookingItem of bookings) {
-        if (bookingItem.status === "completed") {
-          try {
-            const response = await fetch(
-              `${API_BASE_URL}/api/Review/user/${userId}/booking/${bookingItem.id}`,
-            );
-
-            if (!response.ok) {
-              reviewStatus[bookingItem.id] = false;
-              continue;
-            }
-
-            const hasReviewed = await response.json();
-            reviewStatus[bookingItem.id] = hasReviewed;
-          } catch (error) {
-            console.error("Error checking review status:", error);
-            reviewStatus[bookingItem.id] = false;
-          }
-        } else {
-          reviewStatus[bookingItem.id] = false;
+    let isCurrent = true;
+    const fetchUserReviews = async () => {
+      setIsReviewStatusLoading(true);
+      setReviewStatusError(false);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/Review`);
+        if (!response.ok) {
+          throw new Error(`Failed to load reviews (HTTP ${response.status})`);
         }
-      }
 
-      setAlreadyReviewed(reviewStatus);
+        const reviews = await response.json();
+        if (!Array.isArray(reviews)) {
+          throw new Error("The reviews API returned an unexpected response.");
+        }
+
+        const userReviews = reviews.reduce((result, review) => {
+          if (String(review.userId ?? review.user?.id) === String(userId)) {
+            result[String(review.bookingId)] = review;
+          }
+          return result;
+        }, {});
+
+        if (isCurrent) setReviewsByBooking(userReviews);
+      } catch (error) {
+        console.error("Failed to load user reviews:", error);
+        if (isCurrent) setReviewStatusError(true);
+      } finally {
+        if (isCurrent) setIsReviewStatusLoading(false);
+      }
     };
 
-    checkReviews();
-  }, [userId, bookings, setAlreadyReviewed]);
+    fetchUserReviews();
+    return () => {
+      isCurrent = false;
+    };
+  }, [userId]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -584,6 +628,10 @@ const HistoryBooking = () => {
       return "cancelled";
     }
 
+    if (booking.status?.toLowerCase() === "awaiting payment") {
+      return "awaiting";
+    }
+
     if (booking.status?.toLowerCase() === "completed") {
       return "completed";
     }
@@ -610,6 +658,12 @@ const HistoryBooking = () => {
           backgroundColor: "#fff",
           color: "#f59e0b",
           borderColor: "#f59e0b",
+        };
+      case "awaiting":
+        return {
+          backgroundColor: "#fff",
+          color: "#ea580c",
+          borderColor: "#ea580c",
         };
       case "paid":
         return {
@@ -654,6 +708,8 @@ const HistoryBooking = () => {
     switch (status.toLowerCase()) {
       case "pending":
         return "Pending";
+      case "awaiting":
+        return "Awaiting Payment";
       case "paid":
         return "Paid";
       case "upcoming":
@@ -1156,6 +1212,7 @@ const HistoryBooking = () => {
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                   <option value="pending">Pending</option>
+                  <option value="awaiting">Awaiting Payment</option>
                   <option value="paid">Paid</option>
                 </select>
               </div>
@@ -1474,7 +1531,9 @@ const HistoryBooking = () => {
                               }}
                             />
                             <span style={styles.infoValue}>
-                              {booking.paymentMethod === "cash"
+                              {booking.paymentMethod
+                                ?.toLowerCase()
+                                .includes("cash")
                                 ? "Cash"
                                 : "Online"}
                             </span>
@@ -1497,13 +1556,40 @@ const HistoryBooking = () => {
                         <button
                           style={{ ...styles.button, ...styles.primaryButton }}
                           onClick={() =>
-                            navigate("/invoice", {
-                              state: { bookingId: booking.id },
-                            })
+                            window.open(
+                              `${window.location.origin}/invoice?bookingId=${encodeURIComponent(booking.id)}`,
+                              "_blank",
+                              "noopener,noreferrer",
+                            )
                           }
                         >
                           📄 Invoice
                         </button>
+
+                        {status === "awaiting" && (
+                          <>
+                            <button
+                              style={{
+                                ...styles.button,
+                                ...styles.primaryButton,
+                              }}
+                              disabled={processingId === booking.id}
+                              onClick={() => handleContinuePayment(booking)}
+                            >
+                              💳 Pay with Midtrans
+                            </button>
+                            <button
+                              style={{
+                                ...styles.button,
+                                ...styles.secondaryButton,
+                              }}
+                              disabled={processingId === booking.id}
+                              onClick={() => handleSwitchToCash(booking)}
+                            >
+                              💵 Switch to Cash
+                            </button>
+                          </>
+                        )}
 
                         {status === "upcoming" && (
                           <button
@@ -1529,32 +1615,36 @@ const HistoryBooking = () => {
                           </button>
                         )}
 
-                        {status === "completed" &&
-                          !alreadyReviewed[booking.id] && (
-                            <button
-                              style={{
-                                ...styles.button,
-                                ...styles.secondaryButton,
-                              }}
-                              onClick={() => handleReviewStay(booking)}
-                            >
-                              ⭐ Review
-                            </button>
-                          )}
-
-                        {status === "completed" &&
-                          alreadyReviewed[booking.id] && (
-                            <div
-                              style={{
-                                ...styles.button,
-                                backgroundColor: "#f0f0f0",
-                                color: "#666",
-                                cursor: "default",
-                              }}
-                            >
-                              ✓ Reviewed
-                            </div>
-                          )}
+                        {status === "completed" && (
+                          <button
+                            type="button"
+                            style={{
+                              ...styles.button,
+                              ...styles.secondaryButton,
+                              ...(isReviewStatusLoading ||
+                              reviewStatusError
+                                ? { opacity: 0.6, cursor: "not-allowed" }
+                                : {}),
+                            }}
+                            disabled={
+                              isReviewStatusLoading || reviewStatusError
+                            }
+                            title={
+                              reviewStatusError
+                                ? "Review status could not be verified"
+                                : undefined
+                            }
+                            onClick={() => handleReviewStay(booking)}
+                          >
+                            {isReviewStatusLoading
+                              ? "Checking review..."
+                              : reviewStatusError
+                                ? "Review unavailable"
+                                : reviewsByBooking[String(booking.id)]
+                                  ? "⭐ View Review"
+                                  : "⭐ Review"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1569,19 +1659,33 @@ const HistoryBooking = () => {
         <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Submit Your Review</DialogTitle>
+              <DialogTitle>
+                {reviewsByBooking[String(selectedBookingForReview.id)]
+                  ? "Your Review"
+                  : "Submit Your Review"}
+              </DialogTitle>
               <DialogDescription>
-                Share your experience for booking #
-                {selectedBookingForReview.bookingId}.
+                {reviewsByBooking[String(selectedBookingForReview.id)]
+                  ? "Your submitted review is shown below."
+                  : "Share your experience for booking #"}
+                {!reviewsByBooking[String(selectedBookingForReview.id)] &&
+                  selectedBookingForReview.bookingId}
+                {!reviewsByBooking[String(selectedBookingForReview.id)] && "."}
               </DialogDescription>
             </DialogHeader>
             <ReviewForm
+              key={selectedBookingForReview.id}
               booking={selectedBookingForReview}
               onClose={() => setShowReviewDialog(false)}
-              userId={userId}
-              bookings={bookings}
-              alreadyReviewed={alreadyReviewed}
-              setAlreadyReviewed={setAlreadyReviewed}
+              existingReview={
+                reviewsByBooking[String(selectedBookingForReview.id)]
+              }
+              onSubmitted={(review) =>
+                setReviewsByBooking((previous) => ({
+                  ...previous,
+                  [String(selectedBookingForReview.id)]: review,
+                }))
+              }
             />
           </DialogContent>
         </Dialog>

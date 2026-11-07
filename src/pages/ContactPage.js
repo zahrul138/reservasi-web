@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { API_BASE_URL } from "../services/apiConfig"
 import { Helmet } from "react-helmet-async"
 import { motion } from "framer-motion"
+import { Check, X } from "lucide-react"
 import {
   FaHotel,
   FaPhone,
@@ -147,6 +148,11 @@ const styles = {
     fontSize: "1rem",
     transition: "all 0.2s",
     boxSizing: "border-box",
+  },
+  lockedInput: {
+    backgroundColor: "#f3f4f6",
+    color: "#555",
+    cursor: "not-allowed",
   },
   formTextarea: {
     width: "100%",
@@ -436,6 +442,58 @@ const styles = {
     display: "flex",
     gap: "1.5rem",
   },
+  noticeOverlay: {
+    position: "fixed",
+    inset: 0,
+    padding: "20px",
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    backdropFilter: "blur(3px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1100,
+  },
+  noticeDialog: {
+    width: "100%",
+    maxWidth: "420px",
+    padding: "32px",
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    textAlign: "center",
+  },
+  noticeIcon: {
+    width: "64px",
+    height: "64px",
+    margin: "0 auto 18px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noticeTitle: {
+    margin: "0 0 10px",
+    color: "#252525",
+    fontSize: "22px",
+  },
+  noticeText: {
+    margin: "0 0 24px",
+    color: "#666",
+    lineHeight: 1.6,
+  },
+  noticeActions: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+  },
+  noticeButton: {
+    minWidth: "120px",
+    padding: "11px 18px",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
 }
 
 const fadeInUp = {
@@ -443,16 +501,34 @@ const fadeInUp = {
   visible: { opacity: 1, y: 0 },
 }
 
-function ContactPage() {
+function ContactPage({ inquiryPages = [] }) {
   const [isMobile, setIsMobile] = useState(false)
+  const [userInfo] = useState(() => {
+    try {
+      const user = JSON.parse(sessionStorage.getItem("user") || "null")
+      return {
+        name:
+          user?.fullname ||
+          user?.fullName ||
+          sessionStorage.getItem("fullname") ||
+          "",
+        email: user?.email || sessionStorage.getItem("email") || "",
+      }
+    } catch (error) {
+      console.error("Failed to load user details:", error)
+      return { name: "", email: "" }
+    }
+  })
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
+    name: userInfo.name,
+    email: userInfo.email,
     phone: "",
     subject: "",
     inquiryType: "",
     message: "",
   })
+  const [notice, setNotice] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     const handleResize = () => {
@@ -474,7 +550,12 @@ function ContactPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setNotice({ type: "confirm" })
+  }
 
+  const submitFeedback = async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/feedback`, {
         method: "POST",
@@ -484,22 +565,33 @@ function ContactPage() {
         body: JSON.stringify(formData),
       })
 
-      if (response.ok) {
-        alert("Thank you for your message! We'll get back to you soon.")
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          subject: "",
-          inquiryType: "",
-          message: "",
-        })
-      } else {
-        alert("Failed to send your message. Please try again.")
+      if (!response.ok) {
+        const errorMessage = await response.text()
+        throw new Error(
+          errorMessage || `Failed to send your message (HTTP ${response.status})`,
+        )
       }
+
+      setFormData({
+        name: userInfo.name,
+        email: userInfo.email,
+        phone: "",
+        subject: "",
+        inquiryType: "",
+        message: "",
+      })
+      setNotice({
+        type: "success",
+        message: "Thank you for your message! We'll get back to you soon.",
+      })
     } catch (error) {
-      console.error(error)
-      alert("An error occurred while sending your message.")
+      console.error("Failed to send feedback:", error)
+      setNotice({
+        type: "error",
+        message: error.message || "An error occurred while sending your message.",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -652,7 +744,11 @@ function ContactPage() {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  style={styles.formInput}
+                  readOnly={Boolean(userInfo.name)}
+                  style={{
+                    ...styles.formInput,
+                    ...(userInfo.name ? styles.lockedInput : {}),
+                  }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "#D09500"
                     e.currentTarget.style.boxShadow = "0 0 0 3px rgba(208, 149, 0, 0.15)"
@@ -674,7 +770,11 @@ function ContactPage() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  style={styles.formInput}
+                  readOnly={Boolean(userInfo.email)}
+                  style={{
+                    ...styles.formInput,
+                    ...(userInfo.email ? styles.lockedInput : {}),
+                  }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "#D09500"
                     e.currentTarget.style.boxShadow = "0 0 0 3px rgba(208, 149, 0, 0.15)"
@@ -729,37 +829,13 @@ function ContactPage() {
                   }}
                 >
                   <option value="">Select inquiry type</option>
-                  <option value="reservation">Room Reservation</option>
-                  <option value="event">Event & Meetings</option>
-                  <option value="dining">Dining Reservations</option>
-                  <option value="spa">Spa Services</option>
-                  <option value="general">General Information</option>
-                  <option value="feedback">Feedback & Complaints</option>
+                  {inquiryPages.map(({ value, label }) => (
+                    <option key={value} value={label}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
               </div>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.formLabel}>
-                <FaCalendarAlt />
-                Subject *
-              </label>
-              <input
-                type="text"
-                name="subject"
-                value={formData.subject}
-                onChange={handleInputChange}
-                required
-                style={styles.formInput}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "#D09500"
-                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(208, 149, 0, 0.15)"
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "#e2e8f0"
-                  e.currentTarget.style.boxShadow = "none"
-                }}
-              />
             </div>
 
             <div style={styles.formGroup}>
@@ -788,6 +864,7 @@ function ContactPage() {
             <button
               type="submit"
               style={styles.submitButton}
+              disabled={isSubmitting}
               onMouseOver={(e) => {
                 e.currentTarget.style.backgroundColor = "#87723B"
                 e.currentTarget.style.transform = "translateY(-2px)"
@@ -1075,6 +1152,110 @@ function ContactPage() {
           </div>
         </div>
       </footer>
+
+      {notice && (
+        <div
+          style={styles.noticeOverlay}
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              notice.type === "confirm" &&
+              !isSubmitting
+            ) {
+              setNotice(null)
+            }
+          }}
+        >
+          <div
+            style={styles.noticeDialog}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="contact-notice-title"
+            aria-describedby="contact-notice-description"
+          >
+            <div
+              style={{
+                ...styles.noticeIcon,
+                backgroundColor:
+                  notice.type === "success"
+                    ? "#eaf7ed"
+                    : notice.type === "error"
+                      ? "#fff1f0"
+                      : "#fff7e6",
+                color:
+                  notice.type === "success"
+                    ? "#2e7d32"
+                    : notice.type === "error"
+                      ? "#d32f2f"
+                      : "#b7791f",
+              }}
+            >
+              {notice.type === "success" ? (
+                <Check size={30} />
+              ) : notice.type === "error" ? (
+                <X size={30} />
+              ) : (
+                <span style={{ fontSize: "28px", fontWeight: 700 }}>!</span>
+              )}
+            </div>
+            <h2 id="contact-notice-title" style={styles.noticeTitle}>
+              {notice.type === "confirm"
+                ? "Send this message?"
+                : notice.type === "success"
+                  ? "Message sent"
+                  : "Message not sent"}
+            </h2>
+            <p id="contact-notice-description" style={styles.noticeText}>
+              {notice.type === "confirm"
+                ? "Please confirm that you want to send your message to the hotel."
+                : notice.message}
+            </p>
+            <div style={styles.noticeActions}>
+              {notice.type === "confirm" ? (
+                <>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.noticeButton,
+                      backgroundColor: "#f1f1f1",
+                      color: "#444",
+                    }}
+                    onClick={() => setNotice(null)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.noticeButton,
+                      backgroundColor: "#d09500",
+                      color: "#fff",
+                      opacity: isSubmitting ? 0.7 : 1,
+                    }}
+                    onClick={submitFeedback}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Sending..." : "Confirm"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  style={{
+                    ...styles.noticeButton,
+                    backgroundColor: "#d09500",
+                    color: "#fff",
+                  }}
+                  onClick={() => setNotice(null)}
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

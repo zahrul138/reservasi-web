@@ -128,6 +128,58 @@ const style = {
     gap: "10px",
     marginTop: "20px",
   },
+  noticeOverlay: {
+    position: "fixed",
+    inset: 0,
+    padding: "20px",
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    backdropFilter: "blur(3px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1100,
+  },
+  noticeDialog: {
+    width: "100%",
+    maxWidth: "420px",
+    padding: "32px",
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    textAlign: "center",
+  },
+  noticeIcon: {
+    width: "64px",
+    height: "64px",
+    margin: "0 auto 18px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noticeTitle: {
+    margin: "0 0 10px",
+    color: "#252525",
+    fontSize: "22px",
+  },
+  noticeText: {
+    margin: "0 0 24px",
+    color: "#666",
+    lineHeight: 1.6,
+  },
+  noticeActions: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+  },
+  noticeButton: {
+    minWidth: "120px",
+    padding: "11px 18px",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
   closeBtn: {
     position: "absolute",
     top: "15px",
@@ -169,6 +221,8 @@ const formatDate = (dateString) => {
 const CheckOutAdmin = () => {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const fetchBookings = async () => {
     try {
@@ -183,21 +237,22 @@ const CheckOutAdmin = () => {
     fetchBookings();
   }, []);
 
-  const handleApprove = async (id) => {
-    const confirm = window.confirm(
-      "Are you sure you want to approve this check-out?",
-    );
-    if (!confirm) return;
-
+  const handleApprove = async () => {
+    if (!notice?.booking || isProcessing) return;
+    const { booking } = notice;
+    setIsProcessing(true);
     try {
-      const bookingToApprove = bookings.find((b) => b.id === id);
-
+      const bookingToApprove = bookings.find((item) => item.id === booking.id);
       if (!bookingToApprove) {
-        alert("Booking not found.");
+        setNotice({
+          type: "error",
+          title: "Booking not found",
+          message: "This booking could not be found. Please refresh the page.",
+        });
         return;
       }
 
-      await axios.patch(`${API_BASE_URL}/api/Booking/${id}`, {
+      await axios.patch(`${API_BASE_URL}/api/Booking/${booking.id}`, {
         status: "Completed",
         paymentStatus: "Completed",
         checkOutApprovedDate: new Date().toISOString(),
@@ -207,15 +262,22 @@ const CheckOutAdmin = () => {
         roomType: bookingToApprove.roomType,
       });
 
-      alert(
-        `Check-out approved for booking ID: ${id} and room quantity restored`,
-      );
-
-      setBookings((prev) => prev.filter((booking) => booking.id !== id));
+      setBookings((prev) => prev.filter((item) => item.id !== booking.id));
       setSelectedBooking(null);
+      setNotice({
+        type: "success",
+        title: "Check-out approved",
+        message: "Check-out is complete and the room quantity was restored.",
+      });
     } catch (error) {
       console.error("Error approving checkout:", error);
-      alert("Failed to approve check-out.");
+      setNotice({
+        type: "error",
+        title: "Check-out failed",
+        message: "The check-out could not be approved. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -264,7 +326,7 @@ const CheckOutAdmin = () => {
                     <td style={style.td}>
                       <button
                         style={{ ...style.actionBtn, ...style.approveBtn }}
-                        onClick={() => handleApprove(booking.id)}
+                        onClick={() => setNotice({ type: "confirm", booking })}
                       >
                         <Check size={16} color="#fff" /> &nbsp; Check Out
                       </button>
@@ -369,11 +431,121 @@ const CheckOutAdmin = () => {
               </div>
               <div style={style.modalActions}>
                 <button
+                  type="button"
+                  style={{ ...style.actionBtn, ...style.detailBtn }}
+                  onClick={() =>
+                    window.open(
+                      `${window.location.origin}/invoice?bookingId=${encodeURIComponent(selectedBooking.id)}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                >
+                  See Invoice
+                </button>
+                <button
+                  type="button"
                   style={{ ...style.actionBtn, ...style.approveBtn }}
-                  onClick={() => handleApprove(selectedBooking.id)}
+                  onClick={() => setNotice({ type: "confirm", booking: selectedBooking })}
                 >
                   <Check size={16} color="#fff" /> &nbsp; Complete Check Out
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {notice && (
+          <div
+            style={style.noticeOverlay}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !isProcessing) {
+                setNotice(null);
+              }
+            }}
+          >
+            <div
+              style={style.noticeDialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="checkout-notice-title"
+              aria-describedby="checkout-notice-description"
+            >
+              <div
+                style={{
+                  ...style.noticeIcon,
+                  backgroundColor:
+                    notice.type === "success"
+                      ? "#eaf7ed"
+                      : notice.type === "error"
+                        ? "#fff1f0"
+                        : "#fff7e6",
+                  color:
+                    notice.type === "success"
+                      ? "#2e7d32"
+                      : notice.type === "error"
+                        ? "#d32f2f"
+                        : "#b7791f",
+                }}
+              >
+                {notice.type === "success" ? (
+                  <Check size={30} />
+                ) : (
+                  <span style={{ fontSize: "28px", fontWeight: 700 }}>!</span>
+                )}
+              </div>
+              <h2 id="checkout-notice-title" style={style.noticeTitle}>
+                {notice.type === "confirm"
+                  ? "Approve check-out?"
+                  : notice.title}
+              </h2>
+              <p id="checkout-notice-description" style={style.noticeText}>
+                {notice.type === "confirm"
+                  ? `Confirm check-out for ${notice.booking.fullname}? The booking will be marked completed and the room quantity restored.`
+                  : notice.message}
+              </p>
+              <div style={style.noticeActions}>
+                {notice.type === "confirm" ? (
+                  <>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.noticeButton,
+                        backgroundColor: "#f1f1f1",
+                        color: "#444",
+                      }}
+                      onClick={() => setNotice(null)}
+                      disabled={isProcessing}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.noticeButton,
+                        backgroundColor: "#4caf50",
+                        color: "#fff",
+                        opacity: isProcessing ? 0.7 : 1,
+                      }}
+                      onClick={handleApprove}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? "Processing..." : "Confirm"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    style={{
+                      ...style.noticeButton,
+                      backgroundColor: "#d0b375",
+                      color: "#fff",
+                    }}
+                    onClick={() => setNotice(null)}
+                  >
+                    Close
+                  </button>
+                )}
               </div>
             </div>
           </div>

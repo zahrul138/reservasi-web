@@ -370,7 +370,6 @@ const DashboardAdmin = () => {
   return (
     <div style={style.container}>
       <SidebarAdmin />
-
       <main style={style.main}>
         <div style={style.headerRow}>
           <div>
@@ -419,7 +418,7 @@ const DashboardAdmin = () => {
 
         <div style={style.gridRow}>
           <div style={style.panel}>
-            <div style={style.panelTitle}>Bookings — 7 Hari Terakhir</div>
+            <div style={style.panelTitle}>Bookings — Last 7 Days</div>
             <div style={style.chartRow}>
               {bookingsPerDay.map(({ day, count }, idx) => {
                 const isToday = idx === bookingsPerDay.length - 1;
@@ -510,7 +509,7 @@ const DashboardAdmin = () => {
             </table>
           ) : (
             <div style={style.emptyState}>
-              {loading ? "Memuat data booking..." : "Belum ada data booking."}
+              {loading ? "Loading..." : "No bookings found."}
             </div>
           )}
         </div>

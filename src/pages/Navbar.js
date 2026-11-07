@@ -147,7 +147,7 @@ const Navbar = () => {
                           fontFamily: "Inter, sans-serif",
                         }}
                       >
-                        Halo, {userFullname}
+                        Hallo, {userFullname}
                       </Typography>
                     )}
 

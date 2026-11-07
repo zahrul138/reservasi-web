@@ -283,21 +283,55 @@ function RoomDetail() {
     return roomPricePerNight * nights;
   };
 
-  const handleBookNow = (e) => {
+  const handleBookNow = async (e) => {
     e.preventDefault();
     const storedUser = sessionStorage.getItem("user");
-    if (!storedUser) {
-      alert("You must be logged in to make a booking.");
-      return;
-    }
-    if (!checkIn || !checkOut) {
-      alert("Please fill in the check-in and check-out dates!");
-      return;
-    }
     if (new Date(checkOut) <= new Date(checkIn)) {
       alert("Check-out date must be after the check-in date!");
       return;
     }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/booking`);
+      if (!response.ok) {
+        throw new Error("Failed to check existing bookings");
+      }
+
+      const bookings = await response.json();
+      const requestedCheckIn = checkIn.slice(0, 10);
+      const requestedCheckOut = checkOut.slice(0, 10);
+      const hasConflict = bookings.some((booking) => {
+        const sameRoom =
+          String(booking.roomId) === String(room.id) ||
+          booking.roomType?.trim().toLowerCase() ===
+            room.title?.trim().toLowerCase();
+        const existingCheckIn = String(booking.checkinDate || "").slice(0, 10);
+        const existingCheckOut = String(booking.checkoutDate || "").slice(
+          0,
+          10,
+        );
+
+        return (
+          sameRoom &&
+          booking.status?.trim().toLowerCase() !== "cancelled" &&
+          booking.status?.trim().toLowerCase() !== "completed" &&
+          existingCheckIn &&
+          existingCheckOut &&
+          requestedCheckIn <= existingCheckOut &&
+          requestedCheckOut > existingCheckIn
+        );
+      });
+
+      if (hasConflict) {
+        alert("This room is already booked for the selected dates.");
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to check room availability:", error);
+      alert("Unable to check room availability. Please try again.");
+      return;
+    }
+
     const user = JSON.parse(storedUser);
     const totalPrice = calculateTotalPrice();
     const bookingDetails = {
@@ -1126,7 +1160,7 @@ function RoomDetail() {
                         value={checkIn}
                         onChange={(e) => {
                           if (!isLoggedIn) {
-                            alert("Anda harus login terlebih dahulu.");
+                            alert("Please log in first.");
                             return;
                           }
                           setCheckIn(e.target.value);
@@ -1143,7 +1177,7 @@ function RoomDetail() {
                         value={checkOut}
                         onChange={(e) => {
                           if (!isLoggedIn) {
-                            alert("Anda harus login terlebih dahulu.");
+                            alert("Please log in first.");
                             return;
                           }
                           setCheckOut(e.target.value);

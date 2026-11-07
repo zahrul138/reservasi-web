@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { API_BASE_URL } from "../services/apiConfig";
+import { createTransaction, loadSnap } from "../utils/midtrans";
 
 const GOLD = "#D09500";
 const GOLD_DARK = "#87723B";
@@ -294,6 +295,7 @@ const STEP_NAMES = ["Guest Info", "Confirmation", "Success"];
 function BookingFlow() {
   const location = useLocation();
   const navigate = useNavigate();
+  const paymentFinishedRef = useRef(false);
   const { bookingDetails = {} } = location.state || {};
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -302,8 +304,6 @@ function BookingFlow() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [country, setCountry] = useState("indonesia");
-  const [address, setAddress] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
 
   useEffect(() => {
@@ -348,7 +348,7 @@ function BookingFlow() {
 
   const handleContinueToPayment = (e) => {
     e.preventDefault();
-    if (!fullName || !email || !phone || !address) {
+    if (!fullName || !email || !phone) {
       alert("Please fill in all required fields");
       return;
     }
@@ -360,45 +360,44 @@ function BookingFlow() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
   const [bookingResult, setBookingResult] = useState(null);
   const [paymentMethodUsed, setPaymentMethodUsed] = useState("");
+  const [isMidtransReady, setIsMidtransReady] = useState(false);
+  const [midtransLoadError, setMidtransLoadError] = useState("");
 
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
-    script.setAttribute("data-client-key", "SB-Mid-client-ZrpuCE7yEUyWxexK");
-    document.head.appendChild(script);
+    let isMounted = true;
+    loadSnap()
+      .then(() => {
+        if (isMounted) {
+          setIsMidtransReady(true);
+          setMidtransLoadError("");
+        }
+      })
+      .catch((error) => {
+        if (isMounted) setMidtransLoadError(error.message);
+      });
+
     return () => {
-      if (document.head.contains(script)) document.head.removeChild(script);
+      isMounted = false;
     };
   }, []);
 
-  const saveBooking = async (paymentMethod, paymentStatus) => {
+  const saveBooking = async (paymentMethod) => {
     const bookingPayload = {
-      bookingId: `BK-${Date.now()}`,
       userId: bookingDetails.userId,
-      fullName,
       fullname: fullName,
       email,
-      phone,
       phoneNumber: phone,
-      country,
-      region: country,
-      address,
       checkinDate: bookingDetails.checkinDate,
       checkoutDate: bookingDetails.checkoutDate,
       roomType: bookingDetails.roomType,
+      roomId: bookingDetails.roomId,
       adultGuests: bookingDetails.adultGuests,
       childGuests: bookingDetails.childGuests,
-      specialRequests,
       specialRequest: specialRequests,
       paymentMethod,
-      paymentStatus,
-      pricePerNight,
-      nights,
-      totalPrice: calculatedTotalPrice,
-      totalAmount: calculatedTotalPrice,
     };
 
-    const res = await fetch(`${API_BASE_URL}/api/Booking`, {
+    const res = await fetch(`${API_BASE_URL}/api/booking`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bookingPayload),
@@ -407,10 +406,74 @@ function BookingFlow() {
     const result = await res.json();
     if (!res.ok) throw new Error(result.message || "Failed to save booking");
 
-    return {
-      ...bookingPayload,
-      bookingId: result.id || bookingPayload.bookingId,
-    };
+    return result;
+  };
+
+  const hasConflictingBooking = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/booking`);
+    if (!response.ok) {
+      throw new Error("Failed to check existing bookings");
+    }
+
+    const bookings = await response.json();
+    const requestedCheckIn = String(bookingDetails.checkinDate || "").slice(
+      0,
+      10,
+    );
+    const requestedCheckOut = String(bookingDetails.checkoutDate || "").slice(
+      0,
+      10,
+    );
+
+    return bookings.some((booking) => {
+      const sameRoom =
+        String(booking.roomId) === String(bookingDetails.roomId) ||
+        booking.roomType?.trim().toLowerCase() ===
+          bookingDetails.roomType?.trim().toLowerCase();
+      const existingCheckIn = String(booking.checkinDate || "").slice(0, 10);
+      const existingCheckOut = String(booking.checkoutDate || "").slice(0, 10);
+      const bookingStatuses = [booking.status, booking.paymentStatus]
+        .filter(Boolean)
+        .map((status) => status.trim().toLowerCase());
+      const isCancelled = bookingStatuses.includes("cancelled");
+      const isCompleted = ["complete", "completed", "awaiting payment"].some(
+        (status) => bookingStatuses.includes(status),
+      );
+
+      return (
+        sameRoom &&
+        !isCancelled &&
+        !isCompleted &&
+        existingCheckIn &&
+        existingCheckOut &&
+        requestedCheckIn <= existingCheckOut &&
+        requestedCheckOut > existingCheckIn
+      );
+    });
+  };
+
+  const pollBookingStatus = async (bookingId, attempts = 5, delayMs = 2000) => {
+    for (let i = 0; i < attempts; i++) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/Payment/status/${bookingId}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const booking = data.booking;
+          if (
+            booking?.paymentStatus &&
+            booking.paymentStatus !== "Pending (Awaiting Payment)"
+          ) {
+            return booking;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return null;
   };
 
   const handleCashPayment = async () => {
@@ -421,7 +484,12 @@ function BookingFlow() {
 
     setIsProcessingPayment(true);
     try {
-      const saved = await saveBooking("Cash", "Pending");
+      if (await hasConflictingBooking()) {
+        alert("This room is already booked for the selected dates.");
+        return;
+      }
+
+      const saved = await saveBooking("Cash Payment");
       setBookingResult(saved);
       setPaymentMethodUsed("cash");
       setCurrentStep(3);
@@ -439,49 +507,55 @@ function BookingFlow() {
       return;
     }
 
+    if (
+      !isMidtransReady ||
+      !window.snap ||
+      typeof window.snap.pay !== "function"
+    ) {
+      alert(
+        midtransLoadError ||
+          "Midtrans sedang dimuat. Tunggu sebentar, lalu coba lagi.",
+      );
+      return;
+    }
+
     setIsProcessingPayment(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/Payment/create-transaction`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: `ORDER-${Date.now()}`,
-            amount: calculatedTotalPrice,
-            customerName: fullName,
-            customerEmail: email,
-            customerPhone: phone,
-          }),
-        },
-      );
+      if (await hasConflictingBooking()) {
+        alert("This room is already booked for the selected dates.");
+        setIsProcessingPayment(false);
+        return;
+      }
 
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.message || "Failed to create transaction");
+      const saved = await saveBooking("Midtrans");
+      const data = await createTransaction(saved.id);
+      if (!data.token) {
+        throw new Error("Failed to create transaction token");
+      }
+
+      paymentFinishedRef.current = false;
 
       window.snap.pay(data.token, {
-        onSuccess: async (result) => {
-          try {
-            const saved = await saveBooking(
-              `Midtrans (${result.payment_type})`,
-              "Completed",
-            );
-            setBookingResult(saved);
-            setPaymentMethodUsed("midtrans");
-            setCurrentStep(3);
-          } catch (error) {
-            console.error(error);
-            alert(
-              "Payment succeeded but failed to save booking. Please contact customer service.",
-            );
-          } finally {
-            setIsProcessingPayment(false);
-          }
+        onSuccess: () => {
+          paymentFinishedRef.current = true;
+          setBookingResult(saved);
+          setPaymentMethodUsed("midtrans");
+          setCurrentStep(3);
+          setIsProcessingPayment(false);
+
+          pollBookingStatus(saved.id)
+            .then((confirmed) => {
+              if (confirmed)
+                setBookingResult((prev) => ({ ...prev, ...confirmed }));
+            })
+            .catch((error) => console.error(error));
         },
         onPending: () => {
+          paymentFinishedRef.current = true;
+          setBookingResult(saved);
+          setPaymentMethodUsed("midtrans");
+          setCurrentStep(3);
           setIsProcessingPayment(false);
-          alert("Waiting for your payment to be completed.");
         },
         onError: () => {
           setIsProcessingPayment(false);
@@ -489,11 +563,20 @@ function BookingFlow() {
         },
         onClose: () => {
           setIsProcessingPayment(false);
+          if (!paymentFinishedRef.current) {
+            alert(
+              "Your booking has been saved. You can continue the payment or switch to cash from your booking history.",
+            );
+            navigate("/historybooking");
+          }
         },
       });
     } catch (error) {
       console.error(error);
-      alert("An error occurred while processing your payment.");
+      alert(
+        error.message ||
+          "Terjadi kesalahan saat memproses pembayaran Midtrans.",
+      );
       setIsProcessingPayment(false);
     }
   };
@@ -505,17 +588,17 @@ function BookingFlow() {
       name,
       status:
         stepId < currentStep
-          ? "complete"
+          ? "Complete"
           : stepId === currentStep
-            ? "current"
-            : "upcoming",
+            ? "Current"
+            : "Upcoming",
     };
   });
 
   return (
     <div style={styles.bookingProcess}>
       <Helmet>
-        <title>Complete Your Booking</title>
+        <title>Booking Flow</title>
       </Helmet>
       <div style={styles.container}>
         <div style={styles.header}>
@@ -533,20 +616,20 @@ function BookingFlow() {
                   <div
                     style={{
                       ...styles.stepCircle,
-                      ...(step.status === "complete"
+                      ...(step.status === "Complete"
                         ? styles.stepCircleComplete
-                        : step.status === "current"
+                        : step.status === "Current"
                           ? styles.stepCircleCurrent
                           : styles.stepCircleUpcoming),
                     }}
                   >
-                    {step.status === "complete" ? (
+                    {step.status === "Complete" ? (
                       "✓"
                     ) : (
                       <span
                         style={{
                           ...styles.stepDot,
-                          ...(step.status === "upcoming"
+                          ...(step.status === "Upcoming"
                             ? styles.stepDotUpcoming
                             : {}),
                         }}
@@ -557,7 +640,7 @@ function BookingFlow() {
                     <span
                       style={{
                         ...styles.stepLine,
-                        ...(step.status === "complete"
+                        ...(step.status === "Complete"
                           ? styles.stepLineComplete
                           : {}),
                       }}
@@ -615,7 +698,7 @@ function BookingFlow() {
                   />
                 </div>
 
-                <div style={styles.formGroup}>
+                {/* <div style={styles.formGroup}>
                   <label style={styles.label}>Country/Region</label>
                   <select
                     value={country}
@@ -629,9 +712,9 @@ function BookingFlow() {
                     <option value="philippines">Philippines</option>
                     <option value="other">Other</option>
                   </select>
-                </div>
+                </div> */}
 
-                <div style={styles.formGroup}>
+                {/* <div style={styles.formGroup}>
                   <label style={styles.label}>Address</label>
                   <textarea
                     value={address}
@@ -641,7 +724,7 @@ function BookingFlow() {
                     required
                     style={styles.textarea}
                   />
-                </div>
+                </div> */}
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>
@@ -854,12 +937,23 @@ function BookingFlow() {
                 </button>
                 <button
                   type="button"
-                  disabled={!termsAccepted || isProcessingPayment}
+                  disabled={
+                    !termsAccepted ||
+                    isProcessingPayment ||
+                    (selectedPaymentMethod === "midtrans" && !isMidtransReady)
+                  }
                   style={{
                     ...styles.submitButton,
-                    opacity: !termsAccepted || isProcessingPayment ? 0.6 : 1,
+                    opacity:
+                      !termsAccepted ||
+                      isProcessingPayment ||
+                      (selectedPaymentMethod === "midtrans" && !isMidtransReady)
+                        ? 0.6
+                        : 1,
                     cursor:
-                      !termsAccepted || isProcessingPayment
+                      !termsAccepted ||
+                      isProcessingPayment ||
+                      (selectedPaymentMethod === "midtrans" && !isMidtransReady)
                         ? "not-allowed"
                         : "pointer",
                   }}
@@ -869,9 +963,23 @@ function BookingFlow() {
                       : handleMidtransPayment
                   }
                 >
-                  {isProcessingPayment ? "Processing..." : "Confirm Booking"}
+                  {isProcessingPayment
+                    ? "Processing..."
+                    : selectedPaymentMethod === "midtrans" && !isMidtransReady
+                      ? midtransLoadError
+                        ? "Midtrans unavailable"
+                        : "Loading Midtrans..."
+                      : "Confirm Booking"}
                 </button>
               </div>
+              {selectedPaymentMethod === "midtrans" && midtransLoadError && (
+                <p
+                  role="alert"
+                  style={{ color: "#b91c1c", marginTop: "0.75rem" }}
+                >
+                  {midtransLoadError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -893,17 +1001,30 @@ function BookingFlow() {
         {currentStep === 3 && bookingResult && (
           <div style={styles.card}>
             <div style={styles.successWrapper}>
-              <div style={styles.successIcon}>✓</div>
-              <h2 style={styles.successTitle}>Booking Confirmed!</h2>
+              <div style={styles.successIcon}>
+                {paymentMethodUsed === "midtrans" &&
+                bookingResult.paymentStatus === "Pending (Awaiting Payment)"
+                  ? "⏳"
+                  : "✓"}
+              </div>
+              <h2 style={styles.successTitle}>
+                {paymentMethodUsed === "midtrans" &&
+                bookingResult.paymentStatus === "Pending (Awaiting Payment)"
+                  ? "Waiting for Payment Confirmation"
+                  : "Booking Confirmed!"}
+              </h2>
               <p style={styles.successSubtitle}>
-                Thank you, {bookingResult.fullName}. Your reservation has been
-                received.
+                Thank you, {bookingResult.fullname}.{" "}
+                {paymentMethodUsed === "midtrans" &&
+                bookingResult.paymentStatus === "Pending (Awaiting Payment)"
+                  ? "We're still confirming your payment with Midtrans. This booking will update automatically once confirmed."
+                  : "Your reservation has been received."}
               </p>
 
               <div style={{ textAlign: "left" }}>
                 <div style={styles.successDetailRow}>
                   <span>Booking ID:</span>
-                  <span>{bookingResult.bookingId}</span>
+                  <span>{bookingResult.id}</span>
                 </div>
                 <hr style={styles.divider} />
                 <div style={styles.successDetailRow}>
@@ -942,11 +1063,16 @@ function BookingFlow() {
                   <span>Payment Method:</span>
                   <span>{bookingResult.paymentMethod}</span>
                 </div>
+                <div style={styles.successDetailRow}>
+                  <span>Payment Status:</span>
+                  <span>{bookingResult.paymentStatus}</span>
+                </div>
                 <hr style={styles.divider} />
                 <div style={styles.totalRow}>
-                  <span>Total Paid</span>
+                  <span>Total</span>
                   <span>
-                    Rp {bookingResult.totalAmount.toLocaleString("id-ID")}
+                    Rp{" "}
+                    {Number(bookingResult.totalPrice).toLocaleString("id-ID")}
                   </span>
                 </div>
               </div>
@@ -963,9 +1089,11 @@ function BookingFlow() {
                   type="button"
                   style={styles.submitButton}
                   onClick={() =>
-                    navigate("/invoice", {
-                      state: { bookingId: bookingResult.bookingId },
-                    })
+                    window.open(
+                      `${window.location.origin}/invoice?bookingId=${encodeURIComponent(bookingResult.id)}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
                   }
                 >
                   View Invoice

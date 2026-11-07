@@ -22,6 +22,7 @@ import CheckInAdmin from "./admin/CheckInAdmin";
 import CheckOutAdmin from "./admin/CheckOutAdmin";
 import HistoryAdmin from "./admin/HistoryAdmin";
 import FeedbackAdmin from "./admin/FeedbackAdmin";
+import ReviewListAdmin from "./admin/ReviewListAdmin";
 
 import Homepage from "./pages/HomePage";
 import RoomDetail from "./pages/RoomDetail";
@@ -35,22 +36,86 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Profile from "./pages/Profile";
 
-const NAVBAR_PATHS = [
-  "/",
-  "/home",
-  "/about",
-  "/contact",
-  "/profile",
-  "/searchbooking",
-  "/historybooking",
+const PUBLIC_PAGE_ROUTES = [
+  { path: "/signin", label: "Sign In", component: SignIn },
+  { path: "/signup", label: "Sign Up", component: SignUp },
+  {
+    path: "/privacyPolicy",
+    label: "Privacy Policy",
+    component: PrivacyPolicy,
+  },
+  {
+    path: "/termsOfService",
+    label: "Terms of Service",
+    component: TermsOfService,
+  },
+  { path: "/booking", label: "Booking", component: BookingFlow },
+  { path: "/invoice", label: "Invoice", component: InvoicePage },
+  {
+    path: "/home",
+    label: "Home",
+    component: Homepage,
+    showNavbar: true,
+    withContainer: true,
+  },
+  {
+    path: "/room/:id",
+    label: "Room Details",
+    component: RoomDetail,
+    showNavbar: true,
+    withContainer: true,
+  },
+  {
+    path: "/searchbooking",
+    label: "Search Booking",
+    component: SearchBooking,
+    showNavbar: true,
+    withContainer: true,
+  },
+  {
+    path: "/historybooking",
+    label: "Booking History",
+    component: HistoryBooking,
+    showNavbar: true,
+    withContainer: true,
+  },
+  {
+    path: "/about",
+    label: "About",
+    component: AboutPage,
+    showNavbar: true,
+    withContainer: true,
+  },
+  {
+    path: "/contact",
+    label: "Contact",
+    component: ContactPage,
+    showNavbar: true,
+    withContainer: true,
+  },
+  {
+    path: "/profile",
+    label: "Profile",
+    component: Profile,
+    showNavbar: true,
+    withContainer: true,
+  },
 ];
 
 function AppRoutes() {
   const location = useLocation();
 
   const showNavbar =
-    NAVBAR_PATHS.includes(location.pathname) ||
-    location.pathname.startsWith("/room/");
+    PUBLIC_PAGE_ROUTES.some(
+      ({ path, showNavbar: pageShowsNavbar }) =>
+        pageShowsNavbar &&
+        (path === location.pathname ||
+          (path === "/room/:id" && location.pathname.startsWith("/room/"))),
+    ) || location.pathname === "/";
+  const inquiryPages = PUBLIC_PAGE_ROUTES.map(({ path, label }) => ({
+    value: path,
+    label,
+  }));
 
   return (
     <>
@@ -58,54 +123,35 @@ function AppRoutes() {
 
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route
-            path="/signin"
-            element={
-              <AnimatedPage>
-                <SignIn />
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <AnimatedPage>
-                <SignUp />
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/privacyPolicy"
-            element={
-              <AnimatedPage>
-                <PrivacyPolicy />
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/termsOfService"
-            element={
-              <AnimatedPage>
-                <TermsOfService />
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/booking"
-            element={
-              <AnimatedPage>
-                <BookingFlow />
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/invoice"
-            element={
-              <AnimatedPage>
-                <InvoicePage />
-              </AnimatedPage>
-            }
-          />
+          {PUBLIC_PAGE_ROUTES.map(
+            ({ path, component: Page, withContainer }) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  withContainer ? (
+                    <div className="container mt-3">
+                      <AnimatedPage>
+                        {Page === ContactPage ? (
+                          <Page inquiryPages={inquiryPages} />
+                        ) : (
+                          <Page />
+                        )}
+                      </AnimatedPage>
+                    </div>
+                  ) : (
+                    <AnimatedPage>
+                      {Page === ContactPage ? (
+                        <Page inquiryPages={inquiryPages} />
+                      ) : (
+                        <Page />
+                      )}
+                    </AnimatedPage>
+                  )
+                }
+              />
+            ),
+          )}
 
           <Route
             path="/admin/dashboard"
@@ -163,77 +209,15 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/review"
+            element={
+              <ProtectedRoute>
+                <ReviewListAdmin />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route
-            path="/home"
-            element={
-              <div className="container mt-3">
-                <AnimatedPage>
-                  <Homepage />
-                </AnimatedPage>
-              </div>
-            }
-          />
-          <Route
-            path="/room/:id"
-            element={
-              <div className="container mt-3">
-                <AnimatedPage>
-                  <RoomDetail />
-                </AnimatedPage>
-              </div>
-            }
-          />
-          <Route
-            path="/searchbooking"
-            element={
-              <div className="container mt-3">
-                <AnimatedPage>
-                  <SearchBooking />
-                </AnimatedPage>
-              </div>
-            }
-          />
-          <Route
-            path="/historybooking"
-            element={
-              <div className="container mt-3">
-                <AnimatedPage>
-                  <HistoryBooking />
-                </AnimatedPage>
-              </div>
-            }
-          />
-          <Route
-            path="/about"
-            element={
-              <div className="container mt-3">
-                <AnimatedPage>
-                  <AboutPage />
-                </AnimatedPage>
-              </div>
-            }
-          />
-          <Route
-            path="/contact"
-            element={
-              <div className="container mt-3">
-                <AnimatedPage>
-                  <ContactPage />
-                </AnimatedPage>
-              </div>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <div className="container mt-3">
-                <AnimatedPage>
-                  <Profile />
-                </AnimatedPage>
-              </div>
-            }
-          />
           <Route
             path="/"
             element={

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import axios from "axios";
 import { API_BASE_URL } from "../services/apiConfig";
-
 import SidebarAdmin from "../components/SidebarAdmin";
 
 const style = {
@@ -130,6 +128,58 @@ const style = {
     gap: "10px",
     marginTop: "20px",
   },
+  noticeOverlay: {
+    position: "fixed",
+    inset: 0,
+    padding: "20px",
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    backdropFilter: "blur(3px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1100,
+  },
+  noticeDialog: {
+    width: "100%",
+    maxWidth: "420px",
+    padding: "32px",
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    textAlign: "center",
+  },
+  noticeIcon: {
+    width: "64px",
+    height: "64px",
+    margin: "0 auto 18px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noticeTitle: {
+    margin: "0 0 10px",
+    color: "#252525",
+    fontSize: "22px",
+  },
+  noticeText: {
+    margin: "0 0 24px",
+    color: "#666",
+    lineHeight: 1.6,
+  },
+  noticeActions: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+  },
+  noticeButton: {
+    minWidth: "120px",
+    padding: "11px 18px",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
   closeBtn: {
     position: "absolute",
     top: "15px",
@@ -144,16 +194,18 @@ const style = {
 const CheckInAdmin = () => {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const navigate = useNavigate();
+  const [confirmation, setConfirmation] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/Booking`);
 
-        const filteredBookings = res.data.filter(
-          (b) => b.status?.toLowerCase() === "pending",
-        );
+        const filteredBookings = res.data.filter((b) => {
+          const status = b.status?.toLowerCase();
+          return status === "pending" || status === "confirmed";
+        });
         setBookings(filteredBookings);
       } catch (err) {
         console.error("Gagal memuat booking:", err);
@@ -189,12 +241,20 @@ const CheckInAdmin = () => {
         checkInApprovedDate: new Date().toISOString(),
       });
 
-      alert(`Booking approved and now active.`);
       setBookings((prev) => prev.filter((b) => b.id !== id));
       setSelectedBooking(null);
+      setNotice({
+        type: "success",
+        title: "Booking approved",
+        message: "The booking has been approved and is now active.",
+      });
     } catch (err) {
       console.error(err);
-      alert("Failed to approve booking.");
+      setNotice({
+        type: "error",
+        title: "Approval failed",
+        message: "The booking could not be approved. Please try again.",
+      });
     }
   };
 
@@ -203,7 +263,11 @@ const CheckInAdmin = () => {
       const bookingToReject = bookings.find((b) => b.id === id);
 
       if (!bookingToReject) {
-        alert("Booking not found.");
+        setNotice({
+          type: "error",
+          title: "Booking not found",
+          message: "This booking could not be found. Please refresh the page.",
+        });
         return;
       }
 
@@ -216,12 +280,33 @@ const CheckInAdmin = () => {
         roomType: bookingToReject.roomType,
       });
 
-      alert(`Booking rejected and room quantity restored.`);
       setBookings((prev) => prev.filter((b) => b.id !== id));
       setSelectedBooking(null);
+      setNotice({
+        type: "success",
+        title: "Booking cancelled",
+        message: "The booking was rejected and room quantity was restored.",
+      });
     } catch (err) {
       console.error(err);
-      alert("Failed to reject booking.");
+      setNotice({
+        type: "error",
+        title: "Cancellation failed",
+        message: "The booking could not be cancelled. Please try again.",
+      });
+    }
+  };
+
+  const handleConfirmAction = () => {
+    if (!confirmation) return;
+
+    const { action, booking } = confirmation;
+    setConfirmation(null);
+
+    if (action === "approve") {
+      handleApprove(booking.id);
+    } else {
+      handleReject(booking.id);
     }
   };
 
@@ -368,27 +453,159 @@ const CheckInAdmin = () => {
                 <button
                   style={{ ...style.actionBtn, ...style.detailBtn }}
                   onClick={() =>
-                    navigate("/invoice", {
-                      state: { bookingId: selectedBooking.id },
-                    })
+                    window.open(
+                      `${window.location.origin}/invoice?bookingId=${encodeURIComponent(selectedBooking.id)}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
                   }
                 >
-                  Lihat Invoice
+                  See Invoice
                 </button>
 
                 <button
                   style={{ ...style.actionBtn, ...style.approveBtn }}
-                  onClick={() => handleApprove(selectedBooking.id)}
+                  onClick={() =>
+                    setConfirmation({
+                      action: "approve",
+                      booking: selectedBooking,
+                    })
+                  }
                 >
                   <Check size={16} color="#fff" /> &nbsp; Completed
                 </button>
                 <button
                   style={{ ...style.actionBtn, ...style.rejectBtn }}
-                  onClick={() => handleReject(selectedBooking.id)}
+                  onClick={() =>
+                    setConfirmation({
+                      action: "cancel",
+                      booking: selectedBooking,
+                    })
+                  }
                 >
                   <X size={16} color="#fff" /> &nbsp; Cancelled
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {confirmation && (
+          <div style={style.noticeOverlay}>
+            <div
+              style={style.noticeDialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="checkin-confirmation-title"
+              aria-describedby="checkin-confirmation-description"
+            >
+              <div
+                style={{
+                  ...style.noticeIcon,
+                  backgroundColor:
+                    confirmation.action === "approve" ? "#eaf7ed" : "#fff1f0",
+                  color:
+                    confirmation.action === "approve" ? "#2e7d32" : "#d32f2f",
+                }}
+              >
+                {confirmation.action === "approve" ? (
+                  <Check size={30} />
+                ) : (
+                  <X size={30} />
+                )}
+              </div>
+              <h2 id="checkin-confirmation-title" style={style.noticeTitle}>
+                {confirmation.action === "approve"
+                  ? "Confirm booking?"
+                  : "Cancel booking?"}
+              </h2>
+              <p
+                id="checkin-confirmation-description"
+                style={style.noticeText}
+              >
+                {confirmation.action === "approve"
+                  ? `Approve the booking for ${confirmation.booking.fullname}?`
+                  : `Cancel the booking for ${confirmation.booking.fullname}? This action cannot be undone.`}
+              </p>
+              <div style={style.noticeActions}>
+                <button
+                  type="button"
+                  style={{
+                    ...style.noticeButton,
+                    backgroundColor: "#eee",
+                    color: "#444",
+                  }}
+                  onClick={() => setConfirmation(null)}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...style.noticeButton,
+                    backgroundColor:
+                      confirmation.action === "approve" ? "#4caf50" : "#f44336",
+                    color: "#fff",
+                  }}
+                  onClick={handleConfirmAction}
+                >
+                  {confirmation.action === "approve"
+                    ? "Confirm"
+                    : "Yes, cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {notice && (
+          <div
+            style={style.noticeOverlay}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setNotice(null);
+            }}
+          >
+            <div
+              style={style.noticeDialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="checkin-notice-title"
+              aria-describedby="checkin-notice-description"
+            >
+              <div
+                style={{
+                  ...style.noticeIcon,
+                  backgroundColor:
+                    notice.type === "success" ? "#eaf7ed" : "#fff1f0",
+                  color: notice.type === "success" ? "#2e7d32" : "#d32f2f",
+                }}
+              >
+                {notice.type === "success" ? (
+                  <Check size={30} />
+                ) : (
+                  <X size={30} />
+                )}
+              </div>
+              <h2 id="checkin-notice-title" style={style.noticeTitle}>
+                {notice.title}
+              </h2>
+              <p
+                id="checkin-notice-description"
+                style={style.noticeText}
+              >
+                {notice.message}
+              </p>
+              <button
+                type="button"
+                style={{
+                  ...style.noticeButton,
+                  backgroundColor: "#d0b375",
+                  color: "#fff",
+                }}
+                onClick={() => setNotice(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         )}

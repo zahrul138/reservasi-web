@@ -63,6 +63,60 @@ const style = {
   deleteBtn: {
     backgroundColor: "#d32f2f",
   },
+  noticeOverlay: {
+    position: "fixed",
+    inset: 0,
+    padding: "20px",
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    backdropFilter: "blur(3px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1100,
+  },
+  noticeDialog: {
+    width: "100%",
+    maxWidth: "420px",
+    padding: "32px",
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    textAlign: "center",
+  },
+  noticeIcon: {
+    width: "64px",
+    height: "64px",
+    margin: "0 auto 18px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "28px",
+    fontWeight: 700,
+  },
+  noticeTitle: {
+    margin: "0 0 10px",
+    color: "#252525",
+    fontSize: "22px",
+  },
+  noticeText: {
+    margin: "0 0 24px",
+    color: "#666",
+    lineHeight: 1.6,
+  },
+  noticeActions: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+  },
+  noticeButton: {
+    minWidth: "120px",
+    padding: "11px 18px",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
   modalOverlay: {
     position: "fixed",
     top: 0,
@@ -152,6 +206,8 @@ const formatDate = (dateString) => {
 const GuestList = () => {
   const [guests, setGuests] = useState([]);
   const [editingGuest, setEditingGuest] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -174,10 +230,15 @@ const GuestList = () => {
     };
 
     if (!updatedGuest.fullname || !updatedGuest.email) {
-      alert("Name and email cannot be empty.");
+      setNotice({
+        type: "error",
+        title: "Required fields",
+        message: "Name and email cannot be empty.",
+      });
       return;
     }
 
+    setIsProcessing(true);
     try {
       await axios.put(
         `${API_BASE_URL}/api/user/${updatedGuest.id}`,
@@ -189,23 +250,47 @@ const GuestList = () => {
         ),
       );
       setEditingGuest(null);
-      alert("Guest updated successfully.");
+      setNotice({
+        type: "success",
+        title: "Guest updated",
+        message: "Guest information has been successfully updated.",
+      });
     } catch (error) {
       console.error("Failed to update guest:", error);
-      alert("Failed to update guest.");
+      setNotice({
+        type: "error",
+        title: "Update failed",
+        message: "Guest information could not be updated. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleDeleteGuest = async (id) => {
-    if (window.confirm("Are you sure you want to delete this guest?")) {
-      try {
-        await axios.delete(`${API_BASE_URL}/api/user/${id}`);
-        setGuests((guests) => guests.filter((guest) => guest.id !== id));
-        alert("Guest deleted successfully.");
-      } catch (error) {
-        console.error("Failed to delete guest:", error);
-        alert("Failed to delete guest.");
-      }
+  const handleDeleteGuest = async () => {
+    if (!notice?.guest || isProcessing) return;
+
+    const { guest } = notice;
+    setIsProcessing(true);
+    try {
+      await axios.delete(`${API_BASE_URL}/api/user/${guest.id}`);
+      setGuests((currentGuests) =>
+        currentGuests.filter((item) => item.id !== guest.id),
+      );
+      setNotice({
+        type: "success",
+        title: "Guest deleted",
+        message: "The guest account has been successfully deleted.",
+      });
+    } catch (error) {
+      console.error("Failed to delete guest:", error);
+      setNotice({
+        type: "error",
+        title: "Delete failed",
+        message: "The guest account could not be deleted. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -214,7 +299,7 @@ const GuestList = () => {
       <SidebarAdmin />
 
       <main style={style.main}>
-        <h1 style={style.title}>Guest Account</h1>
+        <h1 style={style.title}>Account List</h1>
         <div style={style.tableContainer}>
           <table style={style.table}>
             <thead>
@@ -253,7 +338,7 @@ const GuestList = () => {
                       </button>
                       <button
                         style={{ ...style.actionBtn, ...style.deleteBtn }}
-                        onClick={() => handleDeleteGuest(guest.id)}
+                        onClick={() => setNotice({ type: "confirm", guest })}
                       >
                         Delete
                       </button>
@@ -277,6 +362,7 @@ const GuestList = () => {
                 type="button"
                 onClick={() => setEditingGuest(null)}
                 style={style.closeBtn}
+                disabled={isProcessing}
               >
                 ✖
               </button>
@@ -354,18 +440,113 @@ const GuestList = () => {
                   <button
                     type="submit"
                     style={{ ...style.actionBtn, ...style.editBtn }}
+                    disabled={isProcessing}
                   >
-                    Save
+                    {isProcessing ? "Saving..." : "Save"}
                   </button>
                   <button
                     type="button"
                     style={{ ...style.actionBtn, ...style.deleteBtn }}
                     onClick={() => setEditingGuest(null)}
+                    disabled={isProcessing}
                   >
                     Cancel
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+        {notice && (
+          <div
+            style={style.noticeOverlay}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !isProcessing) {
+                setNotice(null);
+              }
+            }}
+          >
+            <div
+              style={style.noticeDialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="guest-notice-title"
+              aria-describedby="guest-notice-description"
+            >
+              <div
+                style={{
+                  ...style.noticeIcon,
+                  backgroundColor:
+                    notice.type === "success"
+                      ? "#eaf7ed"
+                      : notice.type === "error"
+                        ? "#fff1f0"
+                        : "#fff1f0",
+                  color:
+                    notice.type === "success"
+                      ? "#2e7d32"
+                      : "#d32f2f",
+                }}
+              >
+                {notice.type === "success"
+                  ? "✓"
+                  : notice.type === "confirm"
+                    ? "!"
+                    : "×"}
+              </div>
+              <h2 id="guest-notice-title" style={style.noticeTitle}>
+                {notice.type === "confirm"
+                  ? "Delete guest account?"
+                  : notice.title}
+              </h2>
+              <p id="guest-notice-description" style={style.noticeText}>
+                {notice.type === "confirm"
+                  ? `This will permanently delete ${notice.guest.fullname || "this guest"}'s account. This action cannot be undone.`
+                  : notice.message}
+              </p>
+              <div style={style.noticeActions}>
+                {notice.type === "confirm" ? (
+                  <>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.noticeButton,
+                        backgroundColor: "#f1f1f1",
+                        color: "#444",
+                      }}
+                      onClick={() => setNotice(null)}
+                      disabled={isProcessing}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.noticeButton,
+                        backgroundColor: "#d32f2f",
+                        color: "#fff",
+                        opacity: isProcessing ? 0.7 : 1,
+                      }}
+                      onClick={handleDeleteGuest}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? "Deleting..." : "Delete"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    style={{
+                      ...style.noticeButton,
+                      backgroundColor: "#d0b375",
+                      color: "#fff",
+                    }}
+                    onClick={() => setNotice(null)}
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

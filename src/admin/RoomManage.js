@@ -86,6 +86,9 @@ function RoomManage() {
   const [pendingQuantityChange, setPendingQuantityChange] = useState(null);
   const [tempQuantityInputs, setTempQuantityInputs] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState(null);
+  const [deleteNotice, setDeleteNotice] = useState(null);
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
 
   const API_URL = API_BASE_URL;
 
@@ -274,9 +277,40 @@ function RoomManage() {
     }
   };
 
-  const handleDeleteRoom = async (id) => {
-    await fetch(`${API_URL}/api/room/${id}`, { method: "DELETE" });
-    fetchRoomsFromAPI();
+  const handleDeleteRoom = async () => {
+    if (!roomToDelete || isDeletingRoom) return;
+
+    setIsDeletingRoom(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/room/${roomToDelete.id}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const errorMessage = await response.text();
+        throw new Error(
+          errorMessage || `Failed to delete room (HTTP ${response.status})`,
+        );
+      }
+
+      setRooms((currentRooms) =>
+        currentRooms.filter((room) => room.id !== roomToDelete.id),
+      );
+      setRoomToDelete(null);
+      setDeleteNotice({
+        type: "success",
+        message: `${roomToDelete.title} was deleted successfully.`,
+      });
+    } catch (error) {
+      console.error("Error deleting room:", error);
+      setRoomToDelete(null);
+      setDeleteNotice({
+        type: "error",
+        message: error.message || "The room could not be deleted. Please try again.",
+      });
+    } finally {
+      setIsDeletingRoom(false);
+    }
   };
 
   const RoomForm = ({ initialData, onSubmit }) => {
@@ -2135,7 +2169,7 @@ function RoomManage() {
 
                   <button
                     className="action-btn delete-btn"
-                    onClick={() => handleDeleteRoom(room.id)}
+                    onClick={() => setRoomToDelete(room)}
                   >
                     <FiTrash2 size={16} />
                     Delete
@@ -2171,6 +2205,82 @@ function RoomManage() {
                 >
                   <FiX size={16} />
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {roomToDelete && (
+          <div className="modal-overlay">
+            <div
+              className="confirmation-dialog"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-room-title"
+              aria-describedby="delete-room-message"
+            >
+              <h3 id="delete-room-title" className="confirmation-title">
+                Delete Room?
+              </h3>
+              <p id="delete-room-message" className="confirmation-message">
+                Are you sure you want to delete {roomToDelete.title}? This
+                action cannot be undone.
+              </p>
+              <div className="confirmation-buttons">
+                <button
+                  type="button"
+                  className="cancel-button"
+                  style={{ backgroundColor: "#6b7280" }}
+                  onClick={() => setRoomToDelete(null)}
+                  disabled={isDeletingRoom}
+                >
+                  <FiX size={16} />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="confirm-button"
+                  style={{ backgroundColor: "#d32f2f" }}
+                  onClick={handleDeleteRoom}
+                  disabled={isDeletingRoom}
+                >
+                  <FiTrash2 size={16} />
+                  {isDeletingRoom ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteNotice && (
+          <div className="modal-overlay">
+            <div
+              className="confirmation-dialog"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-room-result-title"
+              aria-describedby="delete-room-result-message"
+            >
+              <h3 id="delete-room-result-title" className="confirmation-title">
+                {deleteNotice.type === "success"
+                  ? "Room Deleted"
+                  : "Delete Failed"}
+              </h3>
+              <p
+                id="delete-room-result-message"
+                className="confirmation-message"
+              >
+                {deleteNotice.message}
+              </p>
+              <div className="confirmation-buttons">
+                <button
+                  type="button"
+                  className="confirm-button"
+                  onClick={() => setDeleteNotice(null)}
+                >
+                  <FiCheck size={16} />
+                  OK
                 </button>
               </div>
             </div>

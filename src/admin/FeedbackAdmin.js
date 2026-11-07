@@ -1,436 +1,342 @@
-import { useState, useEffect } from "react";
-import { Star, Check, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { FiTrash2 } from "react-icons/fi";
 import SidebarAdmin from "../components/SidebarAdmin";
 import { API_BASE_URL } from "../services/apiConfig";
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  if (isNaN(date)) return "Invalid Date";
+const style = {
+  container: {
+    display: "flex",
+    minHeight: "100vh",
+    fontFamily: "'Segoe UI', sans-serif",
+  },
+  main: {
+    flex: 1,
+    padding: "30px",
+    backgroundColor: "#f5f2db",
+    marginLeft: "var(--admin-sidebar-width, 232px)",
+    transition: "margin-left 0.25s ease",
+    minHeight: "100vh",
+  },
+  title: {
+    fontSize: "28px",
+    fontWeight: "bold",
+    marginBottom: "30px",
+  },
+  tableContainer: {
+    backgroundColor: "#fff",
+    borderRadius: "10px",
+    overflowX: "auto",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+  th: {
+    backgroundColor: "#d0b375",
+    padding: "14px",
+    textAlign: "left",
+    fontWeight: "bold",
+    color: "#333",
+    whiteSpace: "nowrap",
+  },
+  td: {
+    padding: "12px",
+    borderBottom: "1px solid #eee",
+    color: "#444",
+  },
+  detailButton: {
+    padding: "8px 14px",
+    border: "none",
+    borderRadius: "6px",
+    backgroundColor: "#1976d2",
+    color: "#fff",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  deleteButton: {
+    padding: "8px 14px",
+    border: "none",
+    borderRadius: "6px",
+    backgroundColor: "#d32f2f",
+    color: "#fff",
+    fontWeight: "bold",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+  },
+  modalActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    marginTop: "8px",
+  },
+  message: {
+    padding: "30px",
+    textAlign: "center",
+    color: "#666",
+  },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    height: "100vh",
+    width: "100vw",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  modal: {
+    position: "relative",
+    background: "#fff",
+    padding: "40px",
+    borderRadius: "16px",
+    width: "700px",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+  heading: {
+    fontSize: "26px",
+    fontWeight: 600,
+    color: "#333",
+    marginBottom: "10px",
+    textAlign: "center",
+    borderBottom: "2px solid #e0c68b",
+    paddingBottom: "10px",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "16px",
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    fontSize: "15px",
+    color: "#444",
+    minWidth: 0,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: "15px",
+    right: "15px",
+    border: "none",
+    background: "transparent",
+    fontSize: "20px",
+    cursor: "pointer",
+  },
+  label: {
+    fontWeight: "bold",
+    marginBottom: "4px",
+    color: "#555",
+  },
+  value: {
+    backgroundColor: "#f9f9f9",
+    padding: "10px",
+    borderRadius: "6px",
+    border: "1px solid #ddd",
+    overflowWrap: "anywhere",
+    whiteSpace: "pre-wrap",
+  },
+  noticeOverlay: {
+    position: "fixed",
+    inset: 0,
+    padding: "20px",
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    backdropFilter: "blur(3px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1100,
+  },
+  noticeDialog: {
+    width: "100%",
+    maxWidth: "420px",
+    padding: "32px",
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    textAlign: "center",
+  },
+  noticeIcon: {
+    width: "64px",
+    height: "64px",
+    margin: "0 auto 18px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noticeTitle: {
+    margin: "0 0 10px",
+    color: "#252525",
+    fontSize: "22px",
+  },
+  noticeText: {
+    margin: "0 0 24px",
+    color: "#666",
+    lineHeight: 1.6,
+  },
+  noticeActions: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+  },
+  noticeButton: {
+    minWidth: "120px",
+    padding: "11px 18px",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+};
 
-  const day = date.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
-  const time = date.toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  return `${day} at ${time}`;
+const formatDate = (dateValue) => {
+  if (!dateValue) return "-";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "Invalid Date";
+  return date.toLocaleString("id-ID");
 };
 
 const FeedbackAdmin = () => {
-  const [reviews, setReviews] = useState([]);
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [deleteNotice, setDeleteNotice] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedReview, setSelectedReview] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchReviews = async () => {
+    const fetchFeedback = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/Review`);
-        if (!response.ok) throw new Error("Failed to fetch reviews");
+        const response = await fetch(`${API_BASE_URL}/api/feedback`);
+        if (!response.ok) {
+          throw new Error(`Failed to load feedback (HTTP ${response.status})`);
+        }
+
         const data = await response.json();
-        setReviews(data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching reviews:", error);
+        if (!Array.isArray(data)) {
+          throw new Error("The feedback API returned an unexpected response.");
+        }
+
+        setFeedbackItems(data);
+      } catch (fetchError) {
+        console.error("Error fetching feedback:", fetchError);
+        setError(fetchError.message);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchReviews();
+    fetchFeedback();
   }, []);
 
-  const handleStatusChange = async (reviewId, newStatus) => {
+  const handleDeleteFeedback = async () => {
+    if (isDeleting || !deleteNotice?.feedback) return;
+
+    const feedback = deleteNotice.feedback;
+    if (feedback.id === undefined || feedback.id === null) {
+      setDeleteNotice({
+        type: "error",
+        message: "This feedback cannot be deleted because it has no ID.",
+      });
+      return;
+    }
+
+    setIsDeleting(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/Review/${reviewId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            status: newStatus,
-          }),
-        },
+        `${API_BASE_URL}/api/feedback/${encodeURIComponent(feedback.id)}`,
+        { method: "DELETE" },
       );
-
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Failed to update review status");
+        const errorMessage = await response.text();
+        throw new Error(
+          errorMessage || `Failed to delete feedback (HTTP ${response.status})`,
+        );
       }
 
-      setReviews((prevReviews) =>
-        prevReviews.map((review) =>
-          review.id === reviewId
-            ? {
-                ...review,
-                status: newStatus,
-                moderatedAt: new Date().toISOString(),
-              }
-            : review,
-        ),
+      setFeedbackItems((items) =>
+        items.filter((item) => String(item.id) !== String(feedback.id)),
       );
-
-      if (selectedReview?.id === reviewId) {
-        setSelectedReview(null);
-      }
-
-      alert(`Review has been ${newStatus}`);
-    } catch (error) {
-      console.error("Error updating review:", error);
-      alert(`Error: ${error.message}`);
+      setSelectedFeedback(null);
+      setDeleteNotice({
+        type: "success",
+        message: "The feedback message has been deleted.",
+      });
+    } catch (deleteError) {
+      console.error("Error deleting feedback:", deleteError);
+      setDeleteNotice({
+        type: "error",
+        message: deleteError.message || "Failed to delete feedback.",
+      });
+    } finally {
+      setIsDeleting(false);
     }
-  };
-
-  const filteredReviews = reviews.filter((review) => {
-    if (filterStatus === "all") {
-      return true;
-    }
-    return review.status === filterStatus;
-  });
-
-  const style = {
-    container: {
-      display: "flex",
-      minHeight: "100vh",
-      fontFamily: "'Segoe UI', sans-serif",
-    },
-    main: {
-      flex: 1,
-      padding: "30px",
-      backgroundColor: "#f5f2db",
-      marginLeft: "var(--admin-sidebar-width, 232px)",
-      transition: "margin-left 0.25s ease",
-      minHeight: "100vh",
-    },
-    title: {
-      fontSize: "28px",
-      fontWeight: "bold",
-      marginBottom: "30px",
-    },
-    tableContainer: {
-      backgroundColor: "#fff",
-      borderRadius: "10px",
-      overflow: "hidden",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-    },
-    table: {
-      width: "100%",
-      borderCollapse: "collapse",
-    },
-    th: {
-      backgroundColor: "#d0b375",
-      padding: "14px",
-      textAlign: "left",
-      fontWeight: "bold",
-      color: "#333",
-    },
-    td: {
-      padding: "12px",
-      borderBottom: "1px solid #eee",
-      color: "#444",
-    },
-    actionBtn: {
-      padding: "8px 16px",
-      marginRight: "8px",
-      cursor: "pointer",
-      borderRadius: "6px",
-      border: "none",
-      fontWeight: "bold",
-      color: "#fff",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    approveBtn: {
-      backgroundColor: "#4caf50",
-    },
-    rejectBtn: {
-      backgroundColor: "#f44336",
-    },
-    detailBtn: {
-      backgroundColor: "#1976d2",
-    },
-    modalOverlay: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      height: "100vh",
-      width: "100vw",
-      backgroundColor: "rgba(0,0,0,0.4)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 1000,
-    },
-    modal: {
-      background: "#fff",
-      padding: "40px",
-      borderRadius: "16px",
-      width: "700px",
-      maxHeight: "90vh",
-      overflowY: "auto",
-      boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
-      position: "relative",
-      display: "flex",
-      flexDirection: "column",
-      gap: "16px",
-    },
-    heading: {
-      fontSize: "26px",
-      fontWeight: "600",
-      color: "#333",
-      marginBottom: "10px",
-      textAlign: "center",
-      borderBottom: "2px solid #e0c68b",
-      paddingBottom: "10px",
-    },
-    grid: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: "16px",
-    },
-    field: {
-      display: "flex",
-      flexDirection: "column",
-      fontSize: "15px",
-      color: "#444",
-    },
-    label: {
-      fontWeight: "bold",
-      marginBottom: "4px",
-      color: "#555",
-    },
-    value: {
-      backgroundColor: "#f9f9f9",
-      padding: "10px",
-      borderRadius: "6px",
-      border: "1px solid #ddd",
-    },
-    modalActions: {
-      display: "flex",
-      justifyContent: "flex-end",
-      gap: "10px",
-      marginTop: "20px",
-    },
-    closeBtn: {
-      position: "absolute",
-      top: "15px",
-      right: "15px",
-      background: "transparent",
-      border: "none",
-      fontSize: "20px",
-      cursor: "pointer",
-    },
-    badge: {
-      display: "inline-block",
-      padding: "4px 8px",
-      borderRadius: "4px",
-      fontWeight: "bold",
-      fontSize: "12px",
-      color: "#fff",
-    },
-    controls: {
-      display: "flex",
-      gap: "1rem",
-      alignItems: "center",
-      marginBottom: "20px",
-      flexWrap: "wrap",
-    },
-    select: {
-      padding: "8px 12px",
-      border: "1px solid #d1d5db",
-      borderRadius: "6px",
-      fontSize: "14px",
-      backgroundColor: "white",
-      minWidth: "150px",
-      cursor: "pointer",
-      transition: "border-color 0.2s ease",
-    },
-    filterLabel: {
-      fontSize: "14px",
-      fontWeight: "500",
-      color: "#333",
-      whiteSpace: "nowrap",
-    },
-    emptyState: {
-      textAlign: "center",
-      padding: "60px 20px",
-      color: "#666",
-      fontSize: "18px",
-    },
   };
 
   return (
     <div style={style.container}>
       <SidebarAdmin />
       <main style={style.main}>
-        <h1 style={style.title}>Guest Feedback Management</h1>
-
-        <div style={style.controls}>
-          <label style={style.filterLabel} htmlFor="filterStatus">
-            Filter by Status:
-          </label>
-          <select
-            id="filterStatus"
-            style={style.select}
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
-
+        <h1 style={style.title}>Feedback</h1>
         <div style={style.tableContainer}>
           <table style={style.table}>
             <thead>
               <tr>
                 <th style={style.th}>No</th>
-                <th style={style.th}>Booking ID</th>
-                <th style={style.th}>Room</th>
-                <th style={style.th}>Guest</th>
-                <th style={style.th}>Title</th>
-                <th style={style.th}>Rating</th>
-                <th style={style.th}>Status</th>
-                <th style={style.th}>Submitted At</th>
-                <th style={style.th}>Actions</th>
-                <th style={style.th}>Detail</th>
+                <th style={style.th}>Email</th>
+                <th style={style.th}>Name</th>
+                <th style={style.th}>Inquiry Type</th>
+                <th style={style.th}>Submitted</th>
+                <th style={style.th}>Details</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    style={{
-                      ...style.td,
-                      textAlign: "center",
-                      padding: "30px",
-                    }}
-                  >
-                    Loading reviews...
+                  <td style={style.message} colSpan={7}>
+                    Loading feedback...
                   </td>
                 </tr>
-              ) : filteredReviews.length === 0 ? (
+              ) : error ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    style={{
-                      ...style.td,
-                      textAlign: "center",
-                      padding: "30px",
-                    }}
-                  >
-                    No reviews found matching your criteria.
+                  <td style={style.message} colSpan={7}>
+                    {error}
+                  </td>
+                </tr>
+              ) : feedbackItems.length === 0 ? (
+                <tr>
+                  <td style={style.message} colSpan={7}>
+                    No feedback messages found.
                   </td>
                 </tr>
               ) : (
-                filteredReviews.map((review, index) => (
-                  <tr key={review.id}>
+                feedbackItems.map((feedback, index) => (
+                  <tr key={feedback.id || `${feedback.email}-${index}`}>
                     <td style={style.td}>{index + 1}</td>
-                    <td style={style.td}>#{review.bookingId}</td>
+                    <td style={style.td}>{feedback.email || "-"}</td>
+                    <td style={style.td}>{feedback.name || "-"}</td>
+                    <td style={style.td}>{feedback.inquiryType || "-"}</td>
                     <td style={style.td}>
-                      {review.room?.title || review.roomType || "N/A"}
-                    </td>
-                    <td style={style.td}>
-                      {review.user?.fullName || review.fullname || "Anonymous"}
-                    </td>
-                    <td style={style.td}>{review.title}</td>
-                    <td style={style.td}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "2px",
-                        }}
-                      >
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            size={14}
-                            style={{
-                              color: i < review.rating ? "#d09500" : "#e5e7eb",
-                              fill: i < review.rating ? "#d09500" : "none",
-                              stroke: i < review.rating ? "#d09500" : "#9ca3af",
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </td>
-                    <td style={style.td}>
-                      <span
-                        style={{
-                          ...style.badge,
-                          ...(review.status === "pending" && {
-                            backgroundColor: "#f59e0b",
-                          }),
-                          ...(review.status === "approved" && {
-                            backgroundColor: "#4caf50",
-                          }),
-                          ...(review.status === "rejected" && {
-                            backgroundColor: "#f44336",
-                          }),
-                        }}
-                      >
-                        {review.status.charAt(0).toUpperCase() +
-                          review.status.slice(1)}
-                      </span>
-                    </td>
-                    <td style={style.td}>{formatDate(review.createdAt)}</td>
-                    <td style={style.td}>
-                      {review.status === "pending" && (
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button
-                            style={{
-                              ...style.actionBtn,
-                              ...style.approveBtn,
-                              marginRight: 0,
-                            }}
-                            onClick={() =>
-                              handleStatusChange(review.id, "approved")
-                            }
-                          >
-                            <Check size={16} /> Approve
-                          </button>
-                          <button
-                            style={{
-                              ...style.actionBtn,
-                              ...style.rejectBtn,
-                              marginRight: 0,
-                            }}
-                            onClick={() =>
-                              handleStatusChange(review.id, "rejected")
-                            }
-                          >
-                            <X size={16} /> Reject
-                          </button>
-                        </div>
-                      )}
-                      {review.status !== "pending" && (
-                        <span style={{ fontSize: "12px", color: "#666" }}>
-                          Moderated
-                        </span>
-                      )}
+                      {formatDate(feedback.createdAt || feedback.submittedAt)}
                     </td>
                     <td style={style.td}>
                       <button
-                        style={{
-                          ...style.actionBtn,
-                          ...style.detailBtn,
-                          marginRight: 0,
-                        }}
-                        onClick={() => setSelectedReview(review)}
+                        type="button"
+                        style={style.detailButton}
+                        onClick={() => setSelectedFeedback(feedback)}
                       >
-                        More
+                        View
                       </button>
                     </td>
                   </tr>
@@ -440,130 +346,177 @@ const FeedbackAdmin = () => {
           </table>
         </div>
 
-        {selectedReview && (
-          <div style={style.modalOverlay}>
-            <div style={style.modal}>
+        {selectedFeedback && (
+          <div
+            style={style.modalOverlay}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setSelectedFeedback(null);
+              }
+            }}
+          >
+            <section
+              style={style.modal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="feedback-detail-title"
+            >
               <button
-                onClick={() => setSelectedReview(null)}
+                type="button"
                 style={style.closeBtn}
+                aria-label="Close feedback details"
+                onClick={() => setSelectedFeedback(null)}
               >
-                ✖
+                ×
               </button>
-              <div style={style.heading}>Review Details</div>
+              <h2 id="feedback-detail-title" style={style.heading}>
+                Feedback Details
+              </h2>
               <div style={style.grid}>
                 <div style={style.field}>
-                  <span style={style.label}>Booking ID</span>
-                  <span style={style.value}>#{selectedReview.bookingId}</span>
+                  <span style={style.label}>Name</span>
+                  <span style={style.value}>{selectedFeedback.name || "-"}</span>
                 </div>
                 <div style={style.field}>
-                  <span style={style.label}>Guest</span>
+                  <span style={style.label}>Phone</span>
+                  <span style={style.value}>{selectedFeedback.phone || "-"}</span>
+                </div>
+                <div style={style.field}>
+                  <span style={style.label}>Email</span>
+                  <span style={style.value}>{selectedFeedback.email || "-"}</span>
+                </div>
+                <div style={style.field}>
+                  <span style={style.label}>Inquiry Type</span>
                   <span style={style.value}>
-                    {selectedReview.user?.fullName || selectedReview.fullname}
+                    {selectedFeedback.inquiryType || "-"}
                   </span>
                 </div>
                 <div style={style.field}>
-                  <span style={style.label}>Room</span>
+                  <span style={style.label}>Subject</span>
                   <span style={style.value}>
-                    {selectedReview.room?.title ||
-                      selectedReview.roomType ||
-                      "N/A"}
+                    {selectedFeedback.subject || "-"}
                   </span>
                 </div>
                 <div style={style.field}>
-                  <span style={style.label}>Review Title</span>
-                  <span style={style.value}>{selectedReview.title}</span>
-                </div>
-                <div style={style.field}>
-                  <span style={style.label}>Rating</span>
+                  <span style={style.label}>Submitted</span>
                   <span style={style.value}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "2px",
-                      }}
-                    >
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          size={16}
-                          style={{
-                            color:
-                              i < selectedReview.rating ? "#d09500" : "#e5e7eb",
-                            fill:
-                              i < selectedReview.rating ? "#d09500" : "none",
-                            stroke:
-                              i < selectedReview.rating ? "#d09500" : "#9ca3af",
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </span>
-                </div>
-                <div style={style.field}>
-                  <span style={style.label}>Status</span>
-                  <span style={style.value}>
-                    <span
-                      style={{
-                        ...style.badge,
-                        ...(selectedReview.status === "pending" && {
-                          backgroundColor: "#f59e0b",
-                        }),
-                        ...(selectedReview.status === "approved" && {
-                          backgroundColor: "#4caf50",
-                        }),
-                        ...(selectedReview.status === "rejected" && {
-                          backgroundColor: "#f44336",
-                        }),
-                      }}
-                    >
-                      {selectedReview.status.charAt(0).toUpperCase() +
-                        selectedReview.status.slice(1)}
-                    </span>
-                  </span>
-                </div>
-                <div style={style.field}>
-                  <span style={style.label}>Submitted At</span>
-                  <span style={style.value}>
-                    {formatDate(selectedReview.createdAt)}
-                  </span>
-                </div>
-                <div style={style.field}>
-                  <span style={style.label}>Moderated At</span>
-                  <span style={style.value}>
-                    {selectedReview.moderatedAt
-                      ? formatDate(selectedReview.moderatedAt)
-                      : "N/A"}
+                    {formatDate(
+                      selectedFeedback.createdAt || selectedFeedback.submittedAt,
+                    )}
                   </span>
                 </div>
                 <div style={{ ...style.field, gridColumn: "span 2" }}>
-                  <span style={style.label}>Comment</span>
+                  <span style={style.label}>Message</span>
                   <span style={style.value}>
-                    {selectedReview.comment || "-"}
+                    {selectedFeedback.message || "-"}
                   </span>
                 </div>
               </div>
-              {selectedReview.status === "pending" && (
-                <div style={style.modalActions}>
+              <div style={style.modalActions}>
+                <button
+                  type="button"
+                  style={style.deleteButton}
+                  onClick={() =>
+                    setDeleteNotice({
+                      type: "confirm",
+                      feedback: selectedFeedback,
+                    })
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {deleteNotice && (
+          <div
+            style={style.noticeOverlay}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !isDeleting) {
+                setDeleteNotice(null);
+              }
+            }}
+          >
+            <section
+              style={style.noticeDialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="feedback-delete-title"
+              aria-describedby="feedback-delete-description"
+            >
+              <div
+                style={{
+                  ...style.noticeIcon,
+                  backgroundColor:
+                    deleteNotice.type === "success" ? "#eaf7ed" : "#fff1f0",
+                  color:
+                    deleteNotice.type === "success" ? "#2e7d32" : "#d32f2f",
+                }}
+              >
+                {deleteNotice.type === "success" ? (
+                  <span style={{ fontSize: "30px" }}>✓</span>
+                ) : (
+                  <FiTrash2 size={28} />
+                )}
+              </div>
+              <h2 id="feedback-delete-title" style={style.noticeTitle}>
+                {deleteNotice.type === "confirm"
+                  ? "Delete feedback?"
+                  : deleteNotice.type === "success"
+                    ? "Feedback deleted"
+                    : "Could not delete feedback"}
+              </h2>
+              <p id="feedback-delete-description" style={style.noticeText}>
+                {deleteNotice.type === "confirm"
+                  ? `Permanently delete the feedback from ${deleteNotice.feedback.name || deleteNotice.feedback.email || "this user"}? This action cannot be undone.`
+                  : deleteNotice.message}
+              </p>
+              <div style={style.noticeActions}>
+                {deleteNotice.type === "confirm" ? (
+                  <>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.noticeButton,
+                        backgroundColor: "#f1f1f1",
+                        color: "#444",
+                      }}
+                      onClick={() => setDeleteNotice(null)}
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.noticeButton,
+                        backgroundColor: "#d32f2f",
+                        color: "#fff",
+                        opacity: isDeleting ? 0.7 : 1,
+                      }}
+                      onClick={handleDeleteFeedback}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </button>
+                  </>
+                ) : (
                   <button
-                    style={{ ...style.actionBtn, ...style.approveBtn }}
-                    onClick={() =>
-                      handleStatusChange(selectedReview.id, "approved")
-                    }
+                    type="button"
+                    style={{
+                      ...style.noticeButton,
+                      backgroundColor: "#d0b375",
+                      color: "#fff",
+                    }}
+                    onClick={() => setDeleteNotice(null)}
                   >
-                    <Check size={16} /> &nbsp; Approve
+                    Close
                   </button>
-                  <button
-                    style={{ ...style.actionBtn, ...style.rejectBtn }}
-                    onClick={() =>
-                      handleStatusChange(selectedReview.id, "rejected")
-                    }
-                  >
-                    <X size={16} /> &nbsp; Reject
-                  </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </section>
           </div>
         )}
       </main>

@@ -6,6 +6,7 @@ import {
   FaChevronLeft,
   FaTachometerAlt,
   FaBed,
+  FaStar,
 } from "react-icons/fa";
 import { ImExit, ImEnter } from "react-icons/im";
 import { FaClockRotateLeft } from "react-icons/fa6";
@@ -41,12 +42,17 @@ const styles = {
     padding: "20px 16px",
     borderBottom: "1px solid rgba(212,175,106,0.18)",
   },
-  brandRow: {
+  brandRow: (isOpen) => ({
     display: "flex",
     alignItems: "center",
     gap: "12px",
+    width: isOpen ? "160px" : "0px",
     minWidth: 0,
-  },
+    overflow: "hidden",
+    opacity: isOpen ? 1 : 0,
+    transform: isOpen ? "translateX(0)" : "translateX(-8px)",
+    transition: "width 0.25s ease, opacity 0.2s ease, transform 0.25s ease",
+  }),
   monogram: {
     width: "42px",
     height: "42px",
@@ -83,7 +89,7 @@ const styles = {
     letterSpacing: "1.5px",
     marginTop: "2px",
   },
-  toggleButton: {
+  toggleButton: (isOpen) => ({
     background: "rgba(212,175,106,0.1)",
     border: "1px solid rgba(212,175,106,0.25)",
     borderRadius: "6px",
@@ -95,8 +101,9 @@ const styles = {
     justifyContent: "center",
     cursor: "pointer",
     flexShrink: 0,
-    transition: "background-color 0.2s",
-  },
+    transform: isOpen ? "scale(1)" : "scale(0.94)",
+    transition: "background-color 0.2s, transform 0.25s ease",
+  }),
   nav: {
     padding: "16px 12px",
     display: "flex",
@@ -134,23 +141,6 @@ const styles = {
     color: isActive ? "#f5ecd8" : "#c9b791",
     whiteSpace: "nowrap",
   }),
-  tooltip: {
-    position: "absolute",
-    left: "60px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    backgroundColor: "#1c1509",
-    color: "#f5ecd8",
-    padding: "6px 10px",
-    borderRadius: "6px",
-    fontSize: "12px",
-    fontWeight: 500,
-    whiteSpace: "nowrap",
-    boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
-    border: "1px solid rgba(212,175,106,0.25)",
-    zIndex: 200,
-    pointerEvents: "none",
-  },
   footer: {
     borderTop: "1px solid rgba(212,175,106,0.18)",
     padding: "14px 12px",
@@ -211,7 +201,9 @@ const styles = {
 };
 
 const SidebarAdmin = () => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(
+    () => sessionStorage.getItem("adminSidebarOpen") !== "false",
+  );
   const [hoveredPath, setHoveredPath] = useState(null);
   const [logoutHovered, setLogoutHovered] = useState(false);
   const navigate = useNavigate();
@@ -241,6 +233,7 @@ const SidebarAdmin = () => {
     { icon: <ImExit />, text: "Check Out", path: "/admin/checkOut" },
     { icon: <FaClockRotateLeft />, text: "History", path: "/admin/history" },
     { icon: <RiFeedbackFill />, text: "Feedback", path: "/admin/feedback" },
+    { icon: <FaStar />, text: "Review List", path: "/admin/review" },
   ];
 
   let sessionUser = null;
@@ -252,30 +245,28 @@ const SidebarAdmin = () => {
   const displayName = sessionUser?.fullname || "Admin";
   const initial = displayName.charAt(0).toUpperCase();
 
-  const handleLogout = () => {
-    sessionStorage.clear();
-    window.dispatchEvent(new Event("storage"));
-    navigate("/signin");
+  const toggleSidebar = () => {
+    const nextIsOpen = !isOpen;
+    sessionStorage.setItem("adminSidebarOpen", String(nextIsOpen));
+    setIsOpen(nextIsOpen);
   };
 
   return (
     <aside style={styles.sidebar(isOpen)}>
       <div>
         <div style={styles.header}>
-          <div style={styles.brandRow}>
+          <div style={styles.brandRow(isOpen)}>
             <div style={styles.monogram}>
               <img src={Logo} alt="Royal Gold" style={styles.monogramImg} />
             </div>
-            {isOpen && (
-              <div style={styles.brandText}>
-                <div style={styles.brandName}>Royal Gold</div>
-                <div style={styles.brandSub}>Admin Panel</div>
-              </div>
-            )}
+            <div style={styles.brandText}>
+              <div style={styles.brandName}>Royal Gold</div>
+              <div style={styles.brandSub}>Admin Panel</div>
+            </div>
           </div>
           <button
-            onClick={() => setIsOpen(!isOpen)}
-            style={styles.toggleButton}
+            onClick={toggleSidebar}
+            style={styles.toggleButton(isOpen)}
             aria-label="Toggle sidebar"
           >
             {isOpen ? <FaChevronLeft size={12} /> : <FaBars size={12} />}
@@ -290,6 +281,7 @@ const SidebarAdmin = () => {
               <div
                 key={item.path}
                 style={styles.navItem(isActive, isHovered, isOpen)}
+                title={isOpen ? undefined : item.text}
                 onClick={() => navigate(item.path)}
                 onMouseEnter={() => setHoveredPath(item.path)}
                 onMouseLeave={() => setHoveredPath(null)}
@@ -297,9 +289,6 @@ const SidebarAdmin = () => {
                 <span style={styles.navIcon(isActive)}>{item.icon}</span>
                 {isOpen && (
                   <span style={styles.navLabel(isActive)}>{item.text}</span>
-                )}
-                {!isOpen && isHovered && (
-                  <div style={styles.tooltip}>{item.text}</div>
                 )}
               </div>
             );
@@ -319,13 +308,13 @@ const SidebarAdmin = () => {
         </div>
         <div
           style={styles.logout(isOpen, logoutHovered)}
-          onClick={handleLogout}
+          title={isOpen ? undefined : "Logout"}
+          onClick={() => navigate("/home")}
           onMouseEnter={() => setLogoutHovered(true)}
           onMouseLeave={() => setLogoutHovered(false)}
         >
           <FaSignOutAlt size={16} />
           {isOpen && <span>Logout</span>}
-          {!isOpen && logoutHovered && <div style={styles.tooltip}>Logout</div>}
         </div>
       </div>
     </aside>

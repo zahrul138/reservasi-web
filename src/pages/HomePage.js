@@ -848,6 +848,7 @@ function Homepage() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const featuredRef = useRef(null);
   const roomsScrollRef = useRef(null);
+  const roomsCycleRef = useRef(null);
   const scrollTrackRef = useRef(null);
   const isDraggingThumb = useRef(false);
   const dragOffsetRef = useRef(0);
@@ -863,6 +864,9 @@ function Homepage() {
   const [rooms, setRooms] = useState([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [roomsError, setRoomsError] = useState(false);
+  const [shouldLoopRooms, setShouldLoopRooms] = useState(false);
+  const displayedRooms =
+    shouldLoopRooms ? [...rooms, ...rooms, ...rooms] : rooms;
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -957,7 +961,7 @@ function Homepage() {
   }, [guestDropdownRef]);
 
   const handleSearch = (e) => {
-    e.preventDefault(); // wajib biar nggak error “form not connected”
+    e.preventDefault(); 
 
     if (!checkIn || !checkOut) {
       alert("Please select both check-in and check-out dates.");
@@ -1102,6 +1106,34 @@ function Homepage() {
 
     if (isDraggingThumb.current) return;
 
+    const cycle = roomsCycleRef.current;
+    if (cycle) {
+      if (
+        el.scrollLeft < cycle.start ||
+        el.scrollLeft > cycle.start + cycle.width
+      ) {
+        const cyclePosition =
+          ((el.scrollLeft - cycle.start) % cycle.width + cycle.width) %
+          cycle.width;
+        el.scrollLeft = cycle.start + cyclePosition;
+      }
+
+      setCanScrollLeft(true);
+      setCanScrollRight(true);
+
+      const widthPercent = Math.min(
+        (el.clientWidth / cycle.width) * 100,
+        100,
+      );
+      const cycleProgress = Math.max(
+        0,
+        Math.min((el.scrollLeft - cycle.start) / cycle.width, 1),
+      );
+      setThumbWidthPercent(widthPercent);
+      setThumbLeftPercent(cycleProgress * (100 - widthPercent));
+      return;
+    }
+
     setCanScrollLeft(el.scrollLeft > 5);
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
 
@@ -1117,8 +1149,64 @@ function Homepage() {
   };
 
   useEffect(() => {
-    checkRoomsScroll();
-  }, [rooms]);
+    const el = roomsScrollRef.current;
+    if (!el || isLoadingRooms || roomsError || rooms.length === 0) {
+      roomsCycleRef.current = null;
+      return;
+    }
+
+    const updateCarousel = () => {
+      const firstCard = el.children[0];
+      const lastOriginalCard = el.children[rooms.length - 1];
+      if (!firstCard || !lastOriginalCard) return;
+
+      const contentWidth =
+        lastOriginalCard.getBoundingClientRect().right -
+        firstCard.getBoundingClientRect().left;
+      const shouldLoop = rooms.length > 1 && contentWidth > el.clientWidth;
+
+      if (shouldLoop !== shouldLoopRooms) {
+        setShouldLoopRooms(shouldLoop);
+        return;
+      }
+
+      if (shouldLoop) {
+        const middleCopyFirstCard = el.children[rooms.length];
+        const nextCopyFirstCard = el.children[rooms.length * 2];
+        if (!middleCopyFirstCard || !nextCopyFirstCard) return;
+
+        const containerLeft = el.getBoundingClientRect().left;
+        const middleCardRect = middleCopyFirstCard.getBoundingClientRect();
+        const nextCardRect = nextCopyFirstCard.getBoundingClientRect();
+        const cycleWidth = nextCardRect.left - middleCardRect.left;
+        const start =
+          middleCardRect.left -
+          containerLeft +
+          el.scrollLeft -
+          (el.clientWidth - middleCardRect.width) / 2;
+
+        if (cycleWidth > 0) {
+          roomsCycleRef.current = { start, width: cycleWidth };
+          el.scrollLeft = start;
+        }
+      } else {
+        roomsCycleRef.current = null;
+        el.scrollLeft = 0;
+      }
+
+      checkRoomsScroll();
+    };
+
+    updateCarousel();
+    if (typeof ResizeObserver !== "undefined") {
+      const resizeObserver = new ResizeObserver(updateCarousel);
+      resizeObserver.observe(el);
+      return () => resizeObserver.disconnect();
+    }
+
+    window.addEventListener("resize", updateCarousel);
+    return () => window.removeEventListener("resize", updateCarousel);
+  }, [rooms, isLoadingRooms, roomsError, shouldLoopRooms]);
 
   const prevTestimonial = () => {
     setCurrentTestimonial((prev) =>
@@ -1431,7 +1519,10 @@ function Homepage() {
             </AnimatePresence>
 
             <div
-              style={styles.roomsGrid}
+              style={{
+                ...styles.roomsGrid,
+                justifyContent: shouldLoopRooms ? "flex-start" : "center",
+              }}
               ref={roomsScrollRef}
               onScroll={checkRoomsScroll}
             >
@@ -1441,6 +1532,7 @@ function Homepage() {
                     color: "#D09500",
                     fontWeight: 500,
                     textAlign: "center",
+                    flex: "0 0 100%",
                   }}
                 >
                   Loading rooms...
@@ -1453,6 +1545,7 @@ function Homepage() {
                     color: "#dc3545",
                     fontWeight: 500,
                     textAlign: "center",
+                    flex: "0 0 100%",
                   }}
                 >
                   Failed to load rooms. Please try again later.
@@ -1465,6 +1558,7 @@ function Homepage() {
                     color: "#D09500",
                     fontWeight: 500,
                     textAlign: "center",
+                    flex: "0 0 100%",
                   }}
                 >
                   No rooms available.
@@ -1473,9 +1567,9 @@ function Homepage() {
 
               {!isLoadingRooms &&
                 !roomsError &&
-                rooms.map((room) => (
+                displayedRooms.map((room, index) => (
                   <div
-                    key={room.id}
+                    key={`${room.id}-${index}`}
                     style={styles.roomCard}
                     onMouseOver={(e) => {
                       e.currentTarget.style.transform = "translateY(-5px)";
@@ -1587,39 +1681,6 @@ function Homepage() {
                 </motion.button>
               )}
             </AnimatePresence>
-          </div>
-
-          <div
-            ref={scrollTrackRef}
-            style={styles.scrollTrack}
-            onClick={(e) => {
-              if (justDraggedRef.current) return;
-              if (!roomsScrollRef.current || !scrollTrackRef.current) return;
-
-              const trackRect = scrollTrackRef.current.getBoundingClientRect();
-              const el = roomsScrollRef.current;
-
-              const thumbWidthPx = (thumbWidthPercent / 100) * trackRect.width;
-              const maxThumbLeftPx = trackRect.width - thumbWidthPx;
-
-              let clickThumbLeftPx = e.clientX - trackRect.left - thumbWidthPx / 2;
-              clickThumbLeftPx = Math.min(Math.max(clickThumbLeftPx, 0), maxThumbLeftPx);
-
-              const percent = maxThumbLeftPx > 0 ? clickThumbLeftPx / maxThumbLeftPx : 0;
-              const maxScrollLeft = el.scrollWidth - el.clientWidth;
-
-              el.scrollTo({ left: percent * maxScrollLeft, behavior: "smooth" });
-            }}
-          >
-            <div
-              style={{
-                ...styles.scrollThumb,
-                width: `${thumbWidthPercent}%`,
-                left: `${thumbLeftPercent}%`,
-              }}
-              onMouseDown={handleThumbMouseDown}
-              onClick={(e) => e.stopPropagation()}  
-            />
           </div>
         </div>
       </motion.section>

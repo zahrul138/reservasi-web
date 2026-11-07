@@ -1,89 +1,115 @@
-import { useState, useEffect } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
-import Logo from "../assets/images/LogoRG3.png"
-import { API_BASE_URL } from "../services/apiConfig"
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import Logo from "../assets/images/LogoRG3.png";
+import { API_BASE_URL } from "../services/apiConfig";
 
 const InvoicePage = () => {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [bookingData, setBookingData] = useState(null)
-  const [notFound, setNotFound] = useState(false)
-  const [pdfReady, setPdfReady] = useState(false)
-  const [currentDate] = useState(new Date())
-  const [invoiceNumber] = useState(() => generateInvoiceNumber())
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [bookingData, setBookingData] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+  const [pdfReady, setPdfReady] = useState(false);
+  const [currentDate] = useState(new Date());
+  const [invoiceNumber] = useState(() => generateInvoiceNumber());
 
   useEffect(() => {
-    const script = document.createElement("script")
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
-    script.onload = () => setPdfReady(true)
-    document.head.appendChild(script)
+    const script = document.createElement("script");
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    script.onload = () => setPdfReady(true);
+    document.head.appendChild(script);
     return () => {
       if (document.head.contains(script)) {
-        document.head.removeChild(script)
+        document.head.removeChild(script);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   useEffect(() => {
     const fetchBookingData = async () => {
-      const id = location.state?.bookingId
+      const id =
+        location.state?.bookingId ||
+        new URLSearchParams(location.search).get("bookingId");
       if (!id) {
-        setNotFound(true)
-        return
+        setNotFound(true);
+        return;
       }
 
       try {
-        const res = await fetch(`${API_BASE_URL}/api/Booking/${id}`)
+        const res = await fetch(`${API_BASE_URL}/api/Booking/${id}`);
         if (!res.ok) {
-          setNotFound(true)
-          return
+          setNotFound(true);
+          return;
         }
-        const data = await res.json()
-        setBookingData(data)
+        const data = await res.json();
+
+        if (
+          data.paymentMethod?.toLowerCase().includes("midtrans") &&
+          data.paymentStatus === "Pending (Awaiting Payment)"
+        ) {
+          try {
+            const statusRes = await fetch(
+              `${API_BASE_URL}/api/Payment/status/${id}`,
+            );
+            if (statusRes.ok) {
+              const refreshed = await statusRes.json();
+              setBookingData(refreshed);
+              return;
+            }
+          } catch (statusErr) {
+            console.error("Failed to refresh payment status:", statusErr);
+          }
+        }
+
+        setBookingData(data);
       } catch (err) {
-        console.error("Failed to fetch booking:", err)
-        setNotFound(true)
+        console.error("Failed to fetch booking:", err);
+        setNotFound(true);
       }
-    }
-    fetchBookingData()
-  }, [location.state])
+    };
+    fetchBookingData();
+  }, [location.state, location.search]);
 
   function generateInvoiceNumber() {
-    const date = new Date()
+    const date = new Date();
     const random = Math.floor(Math.random() * 1000)
       .toString()
-      .padStart(3, "0")
+      .padStart(3, "0");
     return `INV-${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, "0")}${date
       .getDate()
       .toString()
-      .padStart(2, "0")}-${random}`
+      .padStart(2, "0")}-${random}`;
   }
 
   const calculateNights = () => {
-    if (!bookingData?.checkinDate || !bookingData?.checkoutDate) return 0
-    const checkIn = new Date(bookingData.checkinDate)
-    const checkOut = new Date(bookingData.checkoutDate)
-    return Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24))
-  }
+    if (!bookingData?.checkinDate || !bookingData?.checkoutDate) return 0;
+    const checkIn = new Date(bookingData.checkinDate);
+    const checkOut = new Date(bookingData.checkoutDate);
+    return Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+  };
 
   const downloadPDF = async () => {
     if (typeof window !== "undefined" && window.html2pdf) {
-      const element = document.getElementById("invoice-content")
+      const element = document.getElementById("invoice-content");
       const opt = {
         margin: 10,
         filename: `invoice-${invoiceNumber}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
-      }
-      await window.html2pdf().set(opt).from(element).save()
+      };
+      await window.html2pdf().set(opt).from(element).save();
     }
-  }
+  };
 
-  const nights = calculateNights()
-  const totalAmount = bookingData?.totalPrice || 0
-  const pricePerNight = nights > 0 ? totalAmount / nights : totalAmount
-  const paymentMethod = bookingData?.paymentMethod?.toLowerCase() || ""
+  const nights = calculateNights();
+  const totalAmount = bookingData?.totalPrice || 0;
+  const pricePerNight = nights > 0 ? totalAmount / nights : totalAmount;
+  const paymentMethod = bookingData?.paymentMethod?.toLowerCase() || "";
+
+  const isPaid =
+    paymentMethod.includes("midtrans") &&
+    bookingData?.paymentStatus?.toLowerCase() === "completed";
 
   const renderPaymentMethod = () => {
     if (paymentMethod.includes("cash")) {
@@ -96,7 +122,13 @@ const InvoicePage = () => {
     if (paymentMethod.includes("cash")) {
       return "Pending (Pay On Arrive)";
     }
-    return `Paid on ${currentDate.toLocaleDateString("en-GB")}`;
+    if (isPaid) {
+      return `Paid on ${currentDate.toLocaleDateString("en-GB")}`;
+    }
+    if (bookingData?.paymentStatus?.toLowerCase() === "failed") {
+      return "Payment Failed";
+    }
+    return "Awaiting Payment Confirmation";
   };
 
   if (notFound) {
@@ -132,10 +164,11 @@ const InvoicePage = () => {
           Back to Home
         </button>
       </div>
-    )
+    );
   }
 
-  if (!bookingData) return <p style={{ textAlign: "center" }}>Loading invoice...</p>
+  if (!bookingData)
+    return <p style={{ textAlign: "center" }}>Loading invoice...</p>;
 
   return (
     <div
@@ -143,58 +176,11 @@ const InvoicePage = () => {
         minHeight: "100vh",
         backgroundColor: "#f8f5f0",
         padding: "2rem 1rem",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
       <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-        {/* Action Buttons */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "2rem",
-          }}
-        >
-          <a
-            href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.75rem 1.25rem",
-              backgroundColor: "white",
-              color: "#374151",
-              textDecoration: "none",
-              borderRadius: "6px",
-              fontSize: "0.875rem",
-              border: "1px solid #d1d5db",
-              fontWeight: "500",
-            }}
-          >
-            ← Back to Home
-          </a>
-          <button
-            onClick={downloadPDF}
-            disabled={!pdfReady}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.75rem 1.25rem",
-              backgroundColor: "rgb(208, 149, 0)",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "0.875rem",
-              cursor: "pointer",
-              fontWeight: "500",
-            }}
-          >
-            📄 Download PDF
-          </button>
-        </div>
-        {/* Invoice Card */}
         <div
           style={{
             backgroundColor: "white",
@@ -219,7 +205,6 @@ const InvoicePage = () => {
               margin: "0 auto",
             }}
           >
-            {/* Header */}
             <div
               style={{
                 display: "flex",
@@ -228,7 +213,6 @@ const InvoicePage = () => {
                 marginBottom: "1rem",
               }}
             >
-              {/* Company Info with Logo */}
               <div
                 style={{
                   display: "flex",
@@ -269,7 +253,6 @@ const InvoicePage = () => {
                   </p>
                 </div>
               </div>
-              {/* Company Address */}
               <div
                 style={{
                   textAlign: "right",
@@ -278,13 +261,14 @@ const InvoicePage = () => {
                   lineHeight: "1.6",
                 }}
               >
-                <div style={{ fontWeight: "600", color: "#1f2937" }}>Royal Gold</div>
+                <div style={{ fontWeight: "600", color: "#1f2937" }}>
+                  Royal Gold
+                </div>
                 <div>Batam Center</div>
                 <div>Batam, Kepulauan Riau</div>
                 <div>Indonesia</div>
               </div>
             </div>
-            {/* Invoice Details Row */}
             <div
               style={{
                 display: "grid",
@@ -294,7 +278,6 @@ const InvoicePage = () => {
                 alignItems: "flex-start",
               }}
             >
-              {/* Billed To */}
               <div>
                 <h3
                   style={{
@@ -317,13 +300,18 @@ const InvoicePage = () => {
                   <div style={{ fontWeight: "600", marginBottom: "0.25rem" }}>
                     {bookingData.fullName || bookingData.fullname}
                   </div>
-                  <div style={{ marginBottom: "0.25rem" }}>{bookingData.email}</div>
-                  <div style={{ marginBottom: "0.25rem" }}>{bookingData.phone || bookingData.phoneNumber}</div>
-                  <div style={{ marginBottom: "0.25rem" }}>{bookingData.address || "Address not provided"}</div>
+                  <div style={{ marginBottom: "0.25rem" }}>
+                    {bookingData.email}
+                  </div>
+                  <div style={{ marginBottom: "0.25rem" }}>
+                    {bookingData.phone || bookingData.phoneNumber}
+                  </div>
+                  <div style={{ marginBottom: "0.25rem" }}>
+                    {bookingData.address || "Address not provided"}
+                  </div>
                   <div>{bookingData.country}</div>
                 </div>
               </div>
-              {/* Date of Issue */}
               <div>
                 <h3
                   style={{
@@ -336,9 +324,10 @@ const InvoicePage = () => {
                 >
                   Date of Issue
                 </h3>
-                <div style={{ fontSize: "0.875rem", color: "#374151" }}>{currentDate.toLocaleDateString("en-GB")}</div>
+                <div style={{ fontSize: "0.875rem", color: "#374151" }}>
+                  {currentDate.toLocaleDateString("en-GB")}
+                </div>
               </div>
-              {/* Invoice Number */}
               <div>
                 <h3
                   style={{
@@ -351,9 +340,10 @@ const InvoicePage = () => {
                 >
                   Invoice Number
                 </h3>
-                <div style={{ fontSize: "0.875rem", color: "#374151" }}>{invoiceNumber.replace("INV-", "")}</div>
+                <div style={{ fontSize: "0.875rem", color: "#374151" }}>
+                  {invoiceNumber.replace("INV-", "")}
+                </div>
               </div>
-              {/* Amount Due */}
               <div>
                 <h3
                   style={{
@@ -377,7 +367,6 @@ const InvoicePage = () => {
                 </div>
               </div>
             </div>
-            {/* Payment Method */}
             <div style={{ marginBottom: "0.25rem" }}>
               <span
                 style={{
@@ -402,7 +391,6 @@ const InvoicePage = () => {
                 {renderPaymentMethod()}
               </span>
             </div>
-            {/* Due Date */}
             <div style={{ marginBottom: "1rem" }}>
               <span
                 style={{
@@ -414,9 +402,10 @@ const InvoicePage = () => {
               >
                 Due Date
               </span>
-              <span style={{ fontSize: "0.875rem", color: "#374151" }}>{renderDueDate()}</span>
+              <span style={{ fontSize: "0.875rem", color: "#374151" }}>
+                {renderDueDate()}
+              </span>
             </div>
-            {/* Blue separator line */}
             <div
               style={{
                 height: "2px",
@@ -424,7 +413,6 @@ const InvoicePage = () => {
                 marginBottom: "0.5rem",
               }}
             ></div>
-            {/* Services Table */}
             <table
               style={{
                 width: "100%",
@@ -494,7 +482,9 @@ const InvoicePage = () => {
                       borderBottom: "1px solid #f3f4f6",
                     }}
                   >
-                    <div style={{ fontWeight: "600", marginBottom: "0.5rem" }}>{bookingData.roomType}</div>
+                    <div style={{ fontWeight: "600", marginBottom: "0.5rem" }}>
+                      {bookingData.roomType}
+                    </div>
                     <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
                       {new Date(bookingData.checkinDate).toLocaleDateString()} -{" "}
                       {new Date(bookingData.checkoutDate).toLocaleDateString()}
@@ -549,8 +539,14 @@ const InvoicePage = () => {
                         borderBottom: "1px solid #f3f4f6",
                       }}
                     >
-                      <div style={{ fontWeight: "600", marginBottom: "0.25rem" }}>Special Requests</div>
-                      <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{bookingData.specialRequests}</div>
+                      <div
+                        style={{ fontWeight: "600", marginBottom: "0.25rem" }}
+                      >
+                        Special Requests
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                        {bookingData.specialRequests}
+                      </div>
                     </td>
                     <td
                       style={{
@@ -586,7 +582,6 @@ const InvoicePage = () => {
                 )}
               </tbody>
             </table>
-            {/* Summary Section */}
             <div
               style={{
                 display: "flex",
@@ -597,7 +592,9 @@ const InvoicePage = () => {
               }}
             >
               <span>Amount Paid</span>
-              <span>{paymentMethod === "midtransfer" ? `Rp${totalAmount.toLocaleString("id-ID")}` : "Rp0"}</span>
+              <span>
+                {isPaid ? `Rp${totalAmount.toLocaleString("id-ID")}` : "Rp0"}
+              </span>
             </div>
             <div
               style={{
@@ -611,9 +608,10 @@ const InvoicePage = () => {
               }}
             >
               <span>Amount Due (IDR)</span>
-              <span>{paymentMethod === "midtransfer" ? "Rp0" : `Rp${totalAmount.toLocaleString("id-ID")}`}</span>
+              <span>
+                {isPaid ? "Rp0" : `Rp${totalAmount.toLocaleString("id-ID")}`}
+              </span>
             </div>
-            {/* Thank You Message */}
             <div
               style={{
                 backgroundColor: "#f9fafb",
@@ -632,16 +630,40 @@ const InvoicePage = () => {
                 }}
               >
                 <div style={{ marginBottom: "0.5rem", fontWeight: "600" }}>
-                  Thank you for choosing Royal Gold Hotel. We look forward to welcoming you!
+                  Thank you for choosing Royal Gold Hotel. We look forward to
+                  welcoming you!
                 </div>
-                <div>For any inquiries, please contact us at +62 21 1234 5678 or email info@royalgold.com</div>
+                <div>
+                  For any inquiries, please contact us at +62 21 1234 5678 or
+                  email info@royalgold.com
+                </div>
               </div>
             </div>
+            <button
+              onClick={downloadPDF}
+              disabled={!pdfReady}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.75rem 1.25rem",
+                margin: "1rem auto 0",
+                backgroundColor: "rgb(208, 149, 0)",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontSize: "0.875rem",
+                cursor: "pointer",
+                fontWeight: "500",
+              }}
+            >
+              📄 Download PDF
+            </button>
           </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default InvoicePage
+export default InvoicePage;

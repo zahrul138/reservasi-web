@@ -63,6 +63,60 @@ const style = {
   deleteBtn: {
     backgroundColor: "#d32f2f",
   },
+  deleteOverlay: {
+    position: "fixed",
+    inset: 0,
+    padding: "20px",
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    backdropFilter: "blur(3px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1100,
+  },
+  deleteDialog: {
+    width: "100%",
+    maxWidth: "420px",
+    padding: "32px",
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    textAlign: "center",
+  },
+  deleteIcon: {
+    width: "64px",
+    height: "64px",
+    margin: "0 auto 18px",
+    borderRadius: "50%",
+    backgroundColor: "#fff1f0",
+    color: "#d32f2f",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteDialogTitle: {
+    margin: "0 0 10px",
+    color: "#252525",
+    fontSize: "22px",
+  },
+  deleteDialogText: {
+    margin: "0 0 24px",
+    color: "#666",
+    lineHeight: 1.6,
+  },
+  deleteDialogActions: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+  },
+  deleteDialogButton: {
+    minWidth: "120px",
+    padding: "11px 18px",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
   modalOverlay: {
     position: "fixed",
     top: 0,
@@ -153,6 +207,9 @@ const formatDate = (dateString) => {
 const HistoryAdmin = () => {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [deleteDialog, setDeleteDialog] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -167,18 +224,34 @@ const HistoryAdmin = () => {
     fetchBookings();
   }, []);
 
-  const completedBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "completed" || booking.status?.toLowerCase() === "cancelled",
-  );
+  const completedBookings = bookings
+    .filter(
+      (booking) =>
+        booking.status?.toLowerCase() === "completed" ||
+        booking.status?.toLowerCase() === "cancelled",
+    )
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.checkinDate).getTime();
+      const dateB = new Date(b.createdAt || b.checkinDate).getTime();
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
 
-  const handleDeleteHistory = async (id) => {
+  const handleDeleteHistory = async () => {
+    if (!deleteDialog?.booking || isDeleting) return;
+
+    const { booking } = deleteDialog;
+    setIsDeleting(true);
     try {
-      await axios.delete(`${API_BASE_URL}/api/booking/${id}`);
-      setBookings((bookings) => bookings.filter((booking) => booking.id !== id));
-      alert("Booking history deleted successfully.");
+      await axios.delete(`${API_BASE_URL}/api/booking/${booking.id}`);
+      setBookings((currentBookings) =>
+        currentBookings.filter((item) => item.id !== booking.id),
+      );
+      setDeleteDialog({ type: "success", booking });
     } catch (error) {
       console.error("Failed to delete booking history:", error);
-      alert("Failed to delete booking history.");
+      setDeleteDialog({ type: "error", booking });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -187,6 +260,24 @@ const HistoryAdmin = () => {
       <SidebarAdmin />
       <main style={style.main}>
         <h1 style={style.title}>History Booking</h1>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
+          }}
+        >
+          Sort by:
+          <select
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value)}
+            style={{ padding: "8px", borderRadius: "6px" }}
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </label>
         <div style={style.tableContainer}>
           <table style={style.table}>
             <thead>
@@ -219,9 +310,10 @@ const HistoryAdmin = () => {
                       </button>
                       <button
                         style={{ ...style.actionBtn, ...style.deleteBtn }}
-                        onClick={() => handleDeleteHistory(booking.id)}
+                        onClick={() =>
+                          setDeleteDialog({ type: "confirm", booking })
+                        }
                       >
-                        <FiTrash2 size={12} />
                         Delete
                       </button>
                     </td>
@@ -306,6 +398,120 @@ const HistoryAdmin = () => {
                     {selectedBooking.specialRequest || "-"}
                   </span>
                 </div>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "8px",
+                }}
+              >
+                <button
+                  type="button"
+                  style={{ ...style.actionBtn, ...style.detailBtn }}
+                  onClick={() =>
+                    window.open(
+                      `${window.location.origin}/invoice?bookingId=${encodeURIComponent(selectedBooking.id)}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                >
+                  See Invoice
+                </button>
+                <button
+                  type="button"
+                  style={{ ...style.actionBtn, ...style.deleteBtn }}
+                  onClick={() => {
+                    setDeleteDialog({
+                      type: "confirm",
+                      booking: selectedBooking,
+                    });
+                    setSelectedBooking(null);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteDialog && (
+          <div
+            style={style.deleteOverlay}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !isDeleting) {
+                setDeleteDialog(null);
+              }
+            }}
+          >
+            <div
+              style={style.deleteDialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-dialog-title"
+              aria-describedby="delete-dialog-description"
+            >
+              <div style={style.deleteIcon}>
+                <FiTrash2 size={28} />
+              </div>
+              <h2 id="delete-dialog-title" style={style.deleteDialogTitle}>
+                {deleteDialog.type === "confirm"
+                  ? "Delete booking history?"
+                  : deleteDialog.type === "success"
+                    ? "Booking history deleted"
+                    : "Could not delete booking"}
+              </h2>
+              <p id="delete-dialog-description" style={style.deleteDialogText}>
+                {deleteDialog.type === "confirm"
+                  ? `This will permanently delete the booking history for ${deleteDialog.booking.fullname}. This action cannot be undone.`
+                  : deleteDialog.type === "success"
+                    ? "The booking history has been successfully deleted."
+                    : "The booking history could not be deleted. Please try again."}
+              </p>
+              <div style={style.deleteDialogActions}>
+                {deleteDialog.type === "confirm" ? (
+                  <>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.deleteDialogButton,
+                        backgroundColor: "#f1f1f1",
+                        color: "#444",
+                      }}
+                      onClick={() => setDeleteDialog(null)}
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        ...style.deleteDialogButton,
+                        backgroundColor: "#d32f2f",
+                        color: "#fff",
+                        opacity: isDeleting ? 0.7 : 1,
+                      }}
+                      onClick={handleDeleteHistory}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    style={{
+                      ...style.deleteDialogButton,
+                      backgroundColor: "#d0b375",
+                      color: "#fff",
+                    }}
+                    onClick={() => setDeleteDialog(null)}
+                  >
+                    Close
+                  </button>
+                )}
               </div>
             </div>
           </div>
