@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { API_BASE_URL } from "../services/apiConfig";
 import { createTransaction, loadSnap } from "../utils/midtrans";
+import { getRemainingRoomQuantity } from "../utils/roomAvailability";
 
 const GOLD = "#D09500";
 const GOLD_DARK = "#87723B";
@@ -362,6 +363,7 @@ function BookingFlow() {
   const [paymentMethodUsed, setPaymentMethodUsed] = useState("");
   const [isMidtransReady, setIsMidtransReady] = useState(false);
   const [midtransLoadError, setMidtransLoadError] = useState("");
+  const [bookingSavedNotice, setBookingSavedNotice] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -410,46 +412,28 @@ function BookingFlow() {
   };
 
   const hasConflictingBooking = async () => {
+    if (!roomData) {
+      throw new Error("Room details are still loading. Please try again.");
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/booking`);
     if (!response.ok) {
       throw new Error("Failed to check existing bookings");
     }
 
     const bookings = await response.json();
-    const requestedCheckIn = String(bookingDetails.checkinDate || "").slice(
-      0,
-      10,
-    );
-    const requestedCheckOut = String(bookingDetails.checkoutDate || "").slice(
-      0,
-      10,
-    );
+    if (!Array.isArray(bookings)) {
+      throw new Error("The server returned invalid booking data.");
+    }
 
-    return bookings.some((booking) => {
-      const sameRoom =
-        String(booking.roomId) === String(bookingDetails.roomId) ||
-        booking.roomType?.trim().toLowerCase() ===
-          bookingDetails.roomType?.trim().toLowerCase();
-      const existingCheckIn = String(booking.checkinDate || "").slice(0, 10);
-      const existingCheckOut = String(booking.checkoutDate || "").slice(0, 10);
-      const bookingStatuses = [booking.status, booking.paymentStatus]
-        .filter(Boolean)
-        .map((status) => status.trim().toLowerCase());
-      const isCancelled = bookingStatuses.includes("cancelled");
-      const isCompleted = ["complete", "completed", "awaiting payment"].some(
-        (status) => bookingStatuses.includes(status),
-      );
-
-      return (
-        sameRoom &&
-        !isCancelled &&
-        !isCompleted &&
-        existingCheckIn &&
-        existingCheckOut &&
-        requestedCheckIn <= existingCheckOut &&
-        requestedCheckOut > existingCheckIn
-      );
-    });
+    return (
+      getRemainingRoomQuantity(
+        roomData,
+        bookings,
+        bookingDetails.checkinDate,
+        bookingDetails.checkoutDate,
+      ) === 0
+    );
   };
 
   const pollBookingStatus = async (bookingId, attempts = 5, delayMs = 2000) => {
@@ -514,7 +498,7 @@ function BookingFlow() {
     ) {
       alert(
         midtransLoadError ||
-          "Midtrans sedang dimuat. Tunggu sebentar, lalu coba lagi.",
+          "Midtrans payment gateway is not ready. Please try again later.",
       );
       return;
     }
@@ -564,10 +548,7 @@ function BookingFlow() {
         onClose: () => {
           setIsProcessingPayment(false);
           if (!paymentFinishedRef.current) {
-            alert(
-              "Your booking has been saved. You can continue the payment or switch to cash from your booking history.",
-            );
-            navigate("/historybooking");
+            setBookingSavedNotice(true);
           }
         },
       });
@@ -1103,6 +1084,87 @@ function BookingFlow() {
           </div>
         )}
       </div>
+      {bookingSavedNotice && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            backgroundColor: "rgba(17, 24, 39, 0.55)",
+            backdropFilter: "blur(3px)",
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="booking-saved-title"
+            aria-describedby="booking-saved-description"
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              padding: "32px",
+              borderRadius: "18px",
+              backgroundColor: "#fff",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                margin: "0 auto 18px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#eaf7ed",
+                color: "#2e7d32",
+                fontSize: "30px",
+              }}
+            >
+              ✓
+            </div>
+            <h2
+              id="booking-saved-title"
+              style={{ margin: "0 0 10px", color: "#252525", fontSize: "22px" }}
+            >
+              Your booking has been saved
+            </h2>
+            <p
+              id="booking-saved-description"
+              style={{ margin: "0 0 24px", color: "#666", lineHeight: 1.6 }}
+            >
+              You can continue the payment or switch to cash from your booking
+              history.
+            </p>
+            <button
+              type="button"
+              style={{
+                minWidth: "180px",
+                padding: "11px 18px",
+                border: "none",
+                borderRadius: "8px",
+                backgroundColor: "#d09500",
+                color: "#fff",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              onClick={() =>
+                navigate("/historybooking", {
+                  replace: true,
+                })
+              }
+            >
+              Go to Booking History
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

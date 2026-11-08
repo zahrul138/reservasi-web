@@ -814,6 +814,17 @@ const styles = {
 
 const API_URL = API_BASE_URL;
 
+const getLocalDateString = (date = new Date()) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+
+const getNextDateString = (dateString) => {
+  const nextDate = new Date(`${dateString}T00:00:00Z`);
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+  return nextDate.toISOString().slice(0, 10);
+};
+
 function parseSafe(value) {
   if (Array.isArray(value)) return value;
   if (typeof value === "string") {
@@ -839,7 +850,7 @@ function Homepage() {
   const navigate = useNavigate();
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
-  const [adults, setAdults] = useState(0);
+  const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [isGuestDropdownOpen, setIsGuestDropdownOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -961,10 +972,20 @@ function Homepage() {
   }, [guestDropdownRef]);
 
   const handleSearch = (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
 
     if (!checkIn || !checkOut) {
       alert("Please select both check-in and check-out dates.");
+      return;
+    }
+
+    if (checkIn < getLocalDateString()) {
+      alert("Check-in date cannot be in the past.");
+      return;
+    }
+
+    if (new Date(checkOut) <= new Date(checkIn)) {
+      alert("Check-out date must be after the check-in date.");
       return;
     }
 
@@ -1281,7 +1302,11 @@ function Homepage() {
                 <input
                   type="date"
                   value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
+                  min={getLocalDateString()}
+                  onChange={(e) => {
+                    setCheckIn(e.target.value);
+                    if (checkOut && checkOut <= e.target.value) setCheckOut("");
+                  }}
                   required
                   style={styles.formInput}
                   onFocus={(e) => {
@@ -1304,7 +1329,7 @@ function Homepage() {
                   type="date"
                   value={checkOut}
                   onChange={(e) => setCheckOut(e.target.value)}
-                  min={checkIn}
+                  min={checkIn ? getNextDateString(checkIn) : getLocalDateString()}
                   required
                   style={styles.formInput}
                   onFocus={(e) => {
@@ -1451,7 +1476,6 @@ function Homepage() {
                 <button
                   type="submit"
                   style={styles.searchButton}
-                  onClick={handleSearch}
                   onMouseOver={(e) => {
                     e.currentTarget.style.backgroundColor = "#87723B";
                     e.currentTarget.style.transform = "translateY(-2px)";

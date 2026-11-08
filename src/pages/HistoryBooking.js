@@ -427,6 +427,7 @@ const HistoryBooking = () => {
   const [reviewsByBooking, setReviewsByBooking] = useState({});
   const [isReviewStatusLoading, setIsReviewStatusLoading] = useState(true);
   const [reviewStatusError, setReviewStatusError] = useState(false);
+  const [bookingActionNotice, setBookingActionNotice] = useState(null);
   const navigate = useNavigate();
 
   const [processingId, setProcessingId] = useState(null);
@@ -442,33 +443,55 @@ const HistoryBooking = () => {
       await loadSnap();
       const data = await createTransaction(booking.id);
 
-      const finish = async () => {
+      const finish = async (resultType) => {
+        setBookingActionNotice(
+          resultType === "success"
+            ? {
+                type: "success",
+                title: "Payment successful",
+                message:
+                  "Your Midtrans payment was successful. Your booking status is being updated.",
+              }
+            : resultType === "pending"
+              ? {
+                  type: "info",
+                  title: "Payment is being processed",
+                  message:
+                    "Midtrans is still processing your payment. Your booking will update once the payment is confirmed.",
+                }
+              : {
+                  type: "error",
+                  title: "Payment failed",
+                  message: "Midtrans could not complete your payment. Please try again.",
+                },
+        );
         try {
           const updated = await syncPaymentStatus(booking.id);
           if (updated) refreshBooking(updated);
         } catch (error) {
-          console.error(error);
+          console.error("Failed to refresh payment status:", error);
         } finally {
           setProcessingId(null);
         }
       };
 
       window.snap.pay(data.token, {
-        onSuccess: finish,
-        onPending: finish,
-        onError: finish,
+        onSuccess: () => finish("success"),
+        onPending: () => finish("pending"),
+        onError: () => finish("error"),
         onClose: () => setProcessingId(null),
       });
     } catch (error) {
-      alert(error.message || "Failed to start payment.");
+      setBookingActionNotice({
+        type: "error",
+        title: "Could not start payment",
+        message: error.message || "Failed to start payment.",
+      });
       setProcessingId(null);
     }
   };
 
   const handleSwitchToCash = async (booking) => {
-    if (!window.confirm("Switch this booking to pay on arrival (cash)?"))
-      return;
-
     setProcessingId(booking.id);
     try {
       const res = await fetch(
@@ -479,12 +502,112 @@ const HistoryBooking = () => {
       if (!res.ok)
         throw new Error(data.message || "Failed to switch payment method.");
 
+      if (!data.booking) {
+        throw new Error("The server did not return the updated booking.");
+      }
+
       refreshBooking(data.booking);
-      alert("Your booking is now set to pay on arrival.");
+      setBookingActionNotice({
+        type: "success",
+        title: "Switched to cash",
+        message: "Your booking is now set to pay on arrival.",
+      });
     } catch (error) {
-      alert(error.message);
+      setBookingActionNotice({
+        type: "error",
+        title: "Could not switch payment method",
+        message: error.message || "Failed to switch payment method.",
+      });
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleCancelBooking = async (booking) => {
+    setProcessingId(booking.id);
+    let bookingDeleted = false;
+    try {
+      const deleteResponse = await fetch(
+        `${API_BASE_URL}/api/booking/${booking.id}`,
+        { method: "DELETE" },
+      );
+      if (!deleteResponse.ok) {
+        const errorMessage = await deleteResponse.text();
+        throw new Error(
+          errorMessage ||
+            `Failed to delete booking (HTTP ${deleteResponse.status})`,
+        );
+      }
+      bookingDeleted = true;
+      setBookings((currentBookings) =>
+        currentBookings.filter((item) => item.id !== booking.id),
+      );
+
+      try {
+        const restoreResponse = await fetch(
+          `${API_BASE_URL}/api/Room/restore-quantity`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomType: booking.roomType }),
+          },
+        );
+        if (!restoreResponse.ok) {
+          const errorMessage = await restoreResponse.text();
+          throw new Error(
+            errorMessage ||
+              `Failed to restore room quantity (HTTP ${restoreResponse.status})`,
+          );
+        }
+      } catch (restoreError) {
+        console.error(
+          "Booking was deleted but room quantity could not be restored:",
+          restoreError,
+        );
+        setBookingActionNotice({
+          type: "error",
+          title: "Booking removed with an issue",
+          message:
+            "The booking was removed, but room availability could not be restored. Please contact the hotel.",
+        });
+        return;
+      }
+
+      setBookingActionNotice({
+        type: "success",
+        title: "Booking removed",
+        message: "Your booking has been removed successfully.",
+      });
+    } catch (error) {
+      console.error("Failed to remove booking:", error);
+      if (bookingDeleted) {
+        setBookingActionNotice({
+          type: "error",
+          title: "Booking removed with an issue",
+          message:
+            "The booking was removed, but room availability could not be restored. Please contact the hotel.",
+        });
+      } else {
+        setBookingActionNotice({
+          type: "error",
+          title: "Could not remove booking",
+          message: error.message || "Failed to remove booking.",
+        });
+      }
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const confirmBookingAction = async () => {
+    if (bookingActionNotice?.type !== "confirm") return;
+    const { action, booking } = bookingActionNotice;
+    setBookingActionNotice(null);
+
+    if (action === "switchToCash") {
+      await handleSwitchToCash(booking);
+    } else if (action === "cancel") {
+      await handleCancelBooking(booking);
     }
   };
 
@@ -1553,18 +1676,23 @@ const HistoryBooking = () => {
                       )}
 
                       <div style={styles.actions}>
-                        <button
-                          style={{ ...styles.button, ...styles.primaryButton }}
-                          onClick={() =>
-                            window.open(
-                              `${window.location.origin}/invoice?bookingId=${encodeURIComponent(booking.id)}`,
-                              "_blank",
-                              "noopener,noreferrer",
-                            )
-                          }
-                        >
-                          📄 Invoice
-                        </button>
+                        {status !== "awaiting" && status !== "cancelled" && (
+                          <button
+                            style={{
+                              ...styles.button,
+                              ...styles.primaryButton,
+                            }}
+                            onClick={() =>
+                              window.open(
+                                `${window.location.origin}/invoice?bookingId=${encodeURIComponent(booking.id)}`,
+                                "_blank",
+                                "noopener,noreferrer",
+                              )
+                            }
+                          >
+                            📄 Invoice
+                          </button>
+                        )}
 
                         {status === "awaiting" && (
                           <>
@@ -1584,9 +1712,32 @@ const HistoryBooking = () => {
                                 ...styles.secondaryButton,
                               }}
                               disabled={processingId === booking.id}
-                              onClick={() => handleSwitchToCash(booking)}
+                              onClick={() =>
+                                setBookingActionNotice({
+                                  type: "confirm",
+                                  action: "switchToCash",
+                                  booking,
+                                })
+                              }
                             >
                               💵 Switch to Cash
+                            </button>
+                            <button
+                              style={{
+                                ...styles.button,
+                                backgroundColor: "#dc2626",
+                                color: "#fff",
+                              }}
+                              disabled={processingId === booking.id}
+                              onClick={() =>
+                                setBookingActionNotice({
+                                  type: "confirm",
+                                  action: "cancel",
+                                  booking,
+                                })
+                              }
+                            >
+                              Cancel Booking
                             </button>
                           </>
                         )}
@@ -1654,6 +1805,160 @@ const HistoryBooking = () => {
           </div>
         )}
       </div>
+
+      {bookingActionNotice && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            backgroundColor: "rgba(17, 24, 39, 0.55)",
+            backdropFilter: "blur(3px)",
+          }}
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              bookingActionNotice.type === "confirm"
+            ) {
+              setBookingActionNotice(null);
+            }
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="booking-action-title"
+            aria-describedby="booking-action-description"
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              padding: "32px",
+              borderRadius: "18px",
+              backgroundColor: "#fff",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                margin: "0 auto 18px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor:
+                  bookingActionNotice.type === "success"
+                    ? "#eaf7ed"
+                    : bookingActionNotice.type === "info"
+                      ? "#fff7e6"
+                      : "#fff1f0",
+                color:
+                  bookingActionNotice.type === "success"
+                    ? "#2e7d32"
+                    : bookingActionNotice.type === "info"
+                      ? "#b7791f"
+                      : "#d32f2f",
+                fontSize: "30px",
+                fontWeight: 700,
+              }}
+            >
+              {bookingActionNotice.type === "confirm"
+                ? "!"
+                : bookingActionNotice.type === "success"
+                  ? "✓"
+                  : bookingActionNotice.type === "info"
+                    ? "…"
+                    : "×"}
+            </div>
+            <h2
+              id="booking-action-title"
+              style={{ margin: "0 0 10px", color: "#252525", fontSize: "22px" }}
+            >
+              {bookingActionNotice.type === "confirm"
+                ? bookingActionNotice.action === "cancel"
+                  ? "Remove this booking?"
+                  : "Switch to cash payment?"
+                : bookingActionNotice.title}
+            </h2>
+            <p
+              id="booking-action-description"
+              style={{ margin: "0 0 24px", color: "#666", lineHeight: 1.6 }}
+            >
+              {bookingActionNotice.type === "confirm"
+                ? bookingActionNotice.action === "cancel"
+                  ? `Remove the booking for ${bookingActionNotice.booking.roomType} from your booking history? This action permanently deletes the booking and cannot be undone.`
+                  : "Switch this booking to pay on arrival (cash)?"
+                : bookingActionNotice.message}
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+              {bookingActionNotice.type === "confirm" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setBookingActionNotice(null)}
+                    style={{
+                      minWidth: 120,
+                      padding: "11px 18px",
+                      border: "none",
+                      borderRadius: 8,
+                      backgroundColor: "#f1f1f1",
+                      color: "#444",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmBookingAction}
+                    style={{
+                      minWidth: 120,
+                      padding: "11px 18px",
+                      border: "none",
+                      borderRadius: 8,
+                      backgroundColor:
+                        bookingActionNotice.action === "cancel"
+                          ? "#dc2626"
+                          : "#d09500",
+                      color: "#fff",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {bookingActionNotice.action === "cancel"
+                      ? "Yes, cancel"
+                      : "Confirm"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setBookingActionNotice(null)}
+                  style={{
+                    minWidth: 120,
+                    padding: "11px 18px",
+                    border: "none",
+                    borderRadius: 8,
+                    backgroundColor: "#d09500",
+                    color: "#fff",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedBookingForReview && (
         <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>

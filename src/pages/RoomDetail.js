@@ -21,6 +21,7 @@ import {
   FaWineGlassAlt,
 } from "react-icons/fa";
 import { API_BASE_URL } from "../services/apiConfig";
+import { getRemainingRoomQuantity } from "../utils/roomAvailability";
 import { motion, AnimatePresence } from "framer-motion";
 
 const styles = {
@@ -200,6 +201,7 @@ function RoomDetail() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
   const guestDropdownRef = useRef(null);
   const [reviews, setReviews] = useState([]);
   const navigate = useNavigate();
@@ -257,8 +259,16 @@ function RoomDetail() {
   }, [id]);
 
   const totalGuests = adults + children;
-  const toggleGuestDropdown = () =>
+  const requireLogin = (event) => {
+    if (isLoggedIn) return false;
+    event?.preventDefault();
+    setShowLoginAlert(true);
+    return true;
+  };
+  const toggleGuestDropdown = (event) => {
+    if (requireLogin(event)) return;
     setIsGuestDropdownOpen(!isGuestDropdownOpen);
+  };
   const incrementAdults = () => setAdults(adults + 1);
   const decrementAdults = () => setAdults(adults > 1 ? adults - 1 : 1);
   const incrementChildren = () => setChildren(children + 1);
@@ -285,6 +295,8 @@ function RoomDetail() {
 
   const handleBookNow = async (e) => {
     e.preventDefault();
+    if (requireLogin()) return;
+
     const storedUser = sessionStorage.getItem("user");
     if (new Date(checkOut) <= new Date(checkIn)) {
       alert("Check-out date must be after the check-in date!");
@@ -298,32 +310,12 @@ function RoomDetail() {
       }
 
       const bookings = await response.json();
-      const requestedCheckIn = checkIn.slice(0, 10);
-      const requestedCheckOut = checkOut.slice(0, 10);
-      const hasConflict = bookings.some((booking) => {
-        const sameRoom =
-          String(booking.roomId) === String(room.id) ||
-          booking.roomType?.trim().toLowerCase() ===
-            room.title?.trim().toLowerCase();
-        const existingCheckIn = String(booking.checkinDate || "").slice(0, 10);
-        const existingCheckOut = String(booking.checkoutDate || "").slice(
-          0,
-          10,
-        );
+      if (!Array.isArray(bookings)) {
+        throw new Error("The server returned invalid booking data.");
+      }
 
-        return (
-          sameRoom &&
-          booking.status?.trim().toLowerCase() !== "cancelled" &&
-          booking.status?.trim().toLowerCase() !== "completed" &&
-          existingCheckIn &&
-          existingCheckOut &&
-          requestedCheckIn <= existingCheckOut &&
-          requestedCheckOut > existingCheckIn
-        );
-      });
-
-      if (hasConflict) {
-        alert("This room is already booked for the selected dates.");
+      if (getRemainingRoomQuantity(room, bookings, checkIn, checkOut) === 0) {
+        alert("There are no rooms available for the selected dates.");
         return;
       }
     } catch (error) {
@@ -1158,11 +1150,9 @@ function RoomDetail() {
                       <input
                         type="date"
                         value={checkIn}
+                        onClick={requireLogin}
                         onChange={(e) => {
-                          if (!isLoggedIn) {
-                            alert("Please log in first.");
-                            return;
-                          }
+                          if (requireLogin(e)) return;
                           setCheckIn(e.target.value);
                         }}
                         required
@@ -1175,11 +1165,9 @@ function RoomDetail() {
                       <input
                         type="date"
                         value={checkOut}
+                        onClick={requireLogin}
                         onChange={(e) => {
-                          if (!isLoggedIn) {
-                            alert("Please log in first.");
-                            return;
-                          }
+                          if (requireLogin(e)) return;
                           setCheckOut(e.target.value);
                         }}
                         required
@@ -1279,7 +1267,11 @@ function RoomDetail() {
                     </div>
                   </div>
 
-                  <button type="submit" className="book-now-btn">
+                  <button
+                    type="submit"
+                    className="book-now-btn"
+                    onClick={requireLogin}
+                  >
                     Book Now
                   </button>
 
@@ -1475,6 +1467,107 @@ function RoomDetail() {
           </div>
         </section>
       </div>
+      {showLoginAlert && (
+        <div
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowLoginAlert(false);
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            backgroundColor: "rgba(17, 24, 39, 0.55)",
+            backdropFilter: "blur(3px)",
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="room-login-alert-title"
+            aria-describedby="room-login-alert-description"
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              padding: "32px",
+              borderRadius: "18px",
+              backgroundColor: "#fff",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                margin: "0 auto 18px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#fff7e6",
+                color: "#b7791f",
+                fontSize: "28px",
+                fontWeight: 700,
+              }}
+            >
+              !
+            </div>
+            <h2
+              id="room-login-alert-title"
+              style={{ margin: "0 0 10px", color: "#252525", fontSize: "22px" }}
+            >
+              Please login first
+            </h2>
+            <p
+              id="room-login-alert-description"
+              style={{ margin: "0 0 24px", color: "#666", lineHeight: 1.6 }}
+            >
+              Please log in to select dates, guests, and book this room.
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => setShowLoginAlert(false)}
+                style={{
+                  minWidth: 120,
+                  padding: "11px 18px",
+                  border: "none",
+                  borderRadius: 8,
+                  backgroundColor: "#f1f1f1",
+                  color: "#444",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/signin")}
+                style={{
+                  minWidth: 120,
+                  padding: "11px 18px",
+                  border: "none",
+                  borderRadius: 8,
+                  backgroundColor: "#d09500",
+                  color: "#fff",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

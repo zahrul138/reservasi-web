@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import {
   FaCheck,
   FaUserFriends,
@@ -14,6 +14,8 @@ import {
   FaDog,
   FaShieldAlt,
 } from "react-icons/fa"
+import { API_BASE_URL } from "../services/apiConfig"
+import { getRemainingRoomQuantity } from "../utils/roomAvailability"
 
 const parseSafe = (value) => {
   try {
@@ -24,9 +26,24 @@ const parseSafe = (value) => {
   }
 };
 
+const getLocalDateString = () => {
+  const today = new Date()
+  return new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10)
+}
+
+const getNextDateString = (dateString) => {
+  const nextDate = new Date(`${dateString}T00:00:00Z`)
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1)
+  return nextDate.toISOString().slice(0, 10)
+}
+
 function SearchBooking() {
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchError, setSearchError] = useState("")
+  const [reloadKey, setReloadKey] = useState(0)
   const [sortBy, setSortBy] = useState("price-low")
 
   // Edit functionality state
@@ -44,20 +61,26 @@ function SearchBooking() {
   const navigate = useNavigate()
   const guestDropdownRef = useRef(null)
 
-  const searchParams = location.state || {
-    checkIn: null,
-    checkOut: null,
-    adults: 1,
-    children: 0,
-    guests: 1,
-  }
+  const searchParams = useMemo(() => {
+    const localDate = getLocalDateString()
+    const tomorrow = new Date(`${localDate}T00:00:00Z`)
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+
+    return location.state || {
+      checkIn: localDate,
+      checkOut: tomorrow.toISOString().slice(0, 10),
+      adults: 1,
+      children: 0,
+      guests: 1,
+    }
+  }, [location.state])
 
   // Initialize editable state with search params
   useEffect(() => {
     setCheckIn(searchParams.checkIn || "")
     setCheckOut(searchParams.checkOut || "")
-    setAdults(searchParams.adults || 0)
-    setChildren(searchParams.children || 0)
+    setAdults(Number(searchParams.adults) || 0)
+    setChildren(Number(searchParams.children) || 0)
   }, [searchParams])
 
   // Close dropdown when clicking outside
@@ -74,14 +97,14 @@ function SearchBooking() {
     }
   }, [guestDropdownRef])
 
-  const totalGuests = (searchParams.adults || 0) + (searchParams.children || 0)
+  const totalGuests = (Number(searchParams.adults) || 0) + (Number(searchParams.children) || 0)
   const editTotalGuests = adults + children
 
   const calculateNights = () => {
     const start = new Date(searchParams.checkIn)
     const end = new Date(searchParams.checkOut)
-    const diffTime = Math.abs(end.getTime() - start.getTime())
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0
+    return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
   }
 
   const nights = calculateNights()
@@ -128,7 +151,16 @@ function SearchBooking() {
       return
     }
 
-    // Update search params and reload page with new data
+    if (checkIn < getLocalDateString()) {
+      alert("Check-in date cannot be in the past.")
+      return
+    }
+
+    if (new Date(checkOut) <= new Date(checkIn)) {
+      alert("Check-out date must be after the check-in date.")
+      return
+    }
+
     const newSearchParams = {
       checkIn,
       checkOut,
@@ -145,52 +177,94 @@ function SearchBooking() {
     setIsEditing(false)
   }
 
-  const loadRooms = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch("https://localhost:7298/api/room")
-      const data = await res.json()
-
-      // Semua room ditampilkan tanpa filter jumlah guest
-      const availableRooms = data.map((room) => ({
-        id: room.id,
-        title: room.title,
-        shortDescription: room.shortDescription,
-        longDescription: room.fullDescription,
-        price: room.price,
-        originalPrice: room.price + 50,
-        quantity: room.quantity,
-        features: parseSafe(room.features),
-        policies: parseSafe(room.policies),
-        image: room.image1
-          ? `https://localhost:7298${room.image1}`
-          : "https://via.placeholder.com/400x300?text=No+Image",
-        // Add all three images for carousel
-        image1: room.image1 ? `https://localhost:7298${room.image1}` : null,
-        image2: room.image2 ? `https://localhost:7298${room.image2}` : null,
-        image3: room.image3 ? `https://localhost:7298${room.image3}` : null,
-        rating: 4.5,
-        reviewCount: 120,
-        size: room.size,
-        bedType: room.bed,
-        maxGuests: Number.parseInt(room.occupancy) || 2,
-        cancellation: "Free cancellation until 48 hours before check-in",
-        breakfast: false,
-        discount: 0,
-      }))
-
-      setRooms(availableRooms)
-    } catch (err) {
-      console.error("Failed to load rooms:", err)
-      setRooms([])
-    }
-    setLoading(false)
-  }
-
   useEffect(() => {
     window.scrollTo(0, 0)
+    let isMounted = true
+
+    const loadRooms = async () => {
+      setLoading(true)
+      setSearchError("")
+
+      try {
+        const [roomResponse, bookingResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/room`),
+          fetch(`${API_BASE_URL}/api/booking`),
+        ])
+        if (!roomResponse.ok || !bookingResponse.ok) {
+          throw new Error("Unable to load room availability.")
+        }
+
+        const [roomData, bookingData] = await Promise.all([
+          roomResponse.json(),
+          bookingResponse.json(),
+        ])
+        if (!Array.isArray(roomData) || !Array.isArray(bookingData)) {
+          throw new Error("The server returned invalid room availability data.")
+        }
+
+        const guests = (Number(searchParams.adults) || 0) + (Number(searchParams.children) || 0)
+        const roomsForDates = roomData
+          .map((room) => {
+            const availableQuantity = getRemainingRoomQuantity(
+              room,
+              bookingData,
+              searchParams.checkIn,
+              searchParams.checkOut,
+            )
+            const maxGuests = Number.parseInt(room.occupancy, 10) || 2
+            const imageUrl = (image) =>
+              image ? new URL(image, API_BASE_URL).toString() : null
+
+            return {
+              id: room.id,
+              title: room.title,
+              shortDescription: room.shortDescription,
+              longDescription: room.fullDescription,
+              price: Number(room.price) || 0,
+              originalPrice: (Number(room.price) || 0) + 50,
+              quantity: room.quantity,
+              availableQuantity,
+              features: parseSafe(room.features),
+              policies: parseSafe(room.policies),
+              image: imageUrl(room.image1) || "/placeholder.svg",
+              image1: imageUrl(room.image1),
+              image2: imageUrl(room.image2),
+              image3: imageUrl(room.image3),
+              rating: 4.5,
+              reviewCount: 120,
+              size: room.size,
+              bedType: room.bed,
+              maxGuests,
+              cancellation: "Free cancellation until 48 hours before check-in",
+              breakfast: false,
+              discount: 0,
+            }
+          })
+          .filter((room) => room.maxGuests >= guests && room.availableQuantity > 0)
+
+        if (isMounted) setRooms(roomsForDates)
+      } catch (error) {
+        console.error("Failed to load room availability:", error)
+        if (isMounted) {
+          setRooms([])
+          setSearchError(error.message)
+        }
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+
     loadRooms()
-  }, [location])
+    return () => {
+      isMounted = false
+    }
+  }, [
+    reloadKey,
+    searchParams.adults,
+    searchParams.checkIn,
+    searchParams.checkOut,
+    searchParams.children,
+  ])
 
   const sortRooms = (rooms, sortBy) => {
     const sorted = [...rooms]
@@ -216,15 +290,15 @@ function SearchBooking() {
       roomType: room.title,
       checkinDate: searchParams.checkIn,
       checkoutDate: searchParams.checkOut,
-      adultGuests: searchParams.adults,
-      childGuests: searchParams.children,
+      adultGuests: Number(searchParams.adults) || 0,
+      childGuests: Number(searchParams.children) || 0,
       nights: nights,
       pricePerNight: room.price,
       totalPrice: room.price * nights,
       bookingId: "GS-" + Math.floor(100000 + Math.random() * 900000),
     }
 
-    navigate("/bookingform", { state: { bookingDetails } })
+    navigate("/booking", { state: { bookingDetails } })
   }
 
   const formatRupiah = (number) => {
@@ -1310,6 +1384,7 @@ function SearchBooking() {
                           <input
                             type="date"
                             value={checkIn}
+                            min={getLocalDateString()}
                             onChange={(e) => setCheckIn(e.target.value)}
                             className="date-input-styled"
                           />
@@ -1355,7 +1430,7 @@ function SearchBooking() {
                             type="date"
                             value={checkOut}
                             onChange={(e) => setCheckOut(e.target.value)}
-                            min={checkIn}
+                            min={checkIn ? getNextDateString(checkIn) : getLocalDateString()}
                             className="date-input-styled"
                           />
                           <div className="date-display">
@@ -1506,10 +1581,18 @@ function SearchBooking() {
             </div>
           </div>
 
-          {sortedRooms.length === 0 ? (
+          {searchError ? (
+            <div className="no-rooms-card" role="alert">
+              <p className="no-rooms-text">Unable to search for rooms</p>
+              <p className="no-rooms-subtext">{searchError}</p>
+              <button className="edit-button" onClick={() => setReloadKey((key) => key + 1)}>
+                Try again
+              </button>
+            </div>
+          ) : sortedRooms.length === 0 ? (
             <div className="no-rooms-card">
-              <p className="no-rooms-text">No rooms available at the moment</p>
-              <p className="no-rooms-subtext">Please check back later or contact the hotel for more information.</p>
+              <p className="no-rooms-text">No rooms available for this search</p>
+              <p className="no-rooms-subtext">Try different dates or a smaller number of guests.</p>
             </div>
           ) : (
             <div className="rooms-list">
@@ -1571,7 +1654,7 @@ function SearchBooking() {
                                 boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                                 zIndex: 2,
                               }}>
-                                {room.quantity} room left
+                                {room.availableQuantity} {room.availableQuantity === 1 ? "room" : "rooms"} left
                               </div>
                             </div>
                             <div className="rating-badge">
